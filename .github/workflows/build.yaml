@@ -25,6 +25,7 @@ jobs:
     - name: Update submodule
       run: |
         cd binaryninjaapi
+        git fetch --tags
         git checkout --force ${{matrix.version}}
     - name: Patch api to allow building headlessly
       run: |
