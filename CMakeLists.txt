@@ -13,8 +13,8 @@ find_path(
 )
 add_subdirectory(${BN_API_PATH} api)
 
-add_library(TestPlugin SHARED library.cpp)
+add_library(${PROJECT_NAME} SHARED library.cpp)
 
-target_link_libraries(TestPlugin PUBLIC binaryninjaapi)
+target_link_libraries(${PROJECT_NAME} PUBLIC binaryninjaapi)
 
-bn_install_plugin(TestPlugin)
+bn_install_plugin(${PROJECT_NAME})
