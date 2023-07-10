@@ -39,5 +39,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: linux-${{env.CONFIGURE_PRESET}}
+        name: ${{matrix.os}}-${{matrix.version}}
         path: ${{github.workspace}}/out/build/${{env.CONFIGURE_PRESET}}/*TestPlugin*
