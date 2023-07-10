@@ -10,20 +10,28 @@ env:
   CONFIGURE_PRESET: "default-release"
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        version: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, dev ]
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: 'true'
-    - name: Setup Binary Ninja
-      id: setup-binja
-      uses: emesare/setup-binary-ninja@v1-beta
-      with:
-        python-support: false
-        license: ${{ secrets.BN_SERIAL }}
+    - uses: seanmiddleditch/gha-setup-ninja@master
+    - uses: ilammy/msvc-dev-cmd@v1
+    - name: Update submodule
+      run: |
+        cd binaryninjaapi \
+        git checkout --force ${{matrix.version}}
+    - name: Patch api to allow building headlessly
+      run: |
+        cd binaryninjaapi \
+        git apply ../binja.patch
     - name: Configure CMake
-      run: cmake --preset ${{env.CONFIGURE_PRESET}} -D BN_INSTALL_DIR=${{ steps.setup-binja.outputs.install-path }}
+      run: cmake --preset ${{env.CONFIGURE_PRESET}} -G Ninja
     - name: Build
       working-directory: ${{github.workspace}}/out/build
       run: cmake --build ${{env.CONFIGURE_PRESET}}
@@ -31,4 +39,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: linux-${{env.CONFIGURE_PRESET}}
-        path: ${{github.workspace}}/out/build/${{env.CONFIGURE_PRESET}}/libbinja-msvc.so
+        path: ${{github.workspace}}/out/build/${{env.CONFIGURE_PRESET}}/*TestPlugin*
