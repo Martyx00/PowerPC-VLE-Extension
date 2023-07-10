@@ -24,12 +24,12 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
     - name: Update submodule
       run: |
-        cd binaryninjaapi \
+        cd binaryninjaapi
         git checkout --force ${{matrix.version}}
     - name: Patch api to allow building headlessly
       run: |
-        cd binaryninjaapi \
-        git apply ../binja.patch
+        cd binaryninjaapi
+        git apply --verbose ../binja.patch
     - name: Configure CMake
       run: cmake --preset ${{env.CONFIGURE_PRESET}} -G Ninja
     - name: Build
