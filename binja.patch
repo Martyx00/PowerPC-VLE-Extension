@@ -1,8 +1,8 @@
 diff --git forkSrcPrefix/CMakeLists.txt forkDstPrefix/CMakeLists.txt
-index 3fe70f9835c698ead14e057ecb6b80ead4d4616a..2665ef0bc5bbc2f7ebc37e5e911950372487884b 100644
+index 3fe70f9835c698ead14e057ecb6b80ead4d4616a..3da466837461831b09cb0f928018c2c91dbf6141 100644
 --- forkSrcPrefix/CMakeLists.txt
 +++ forkDstPrefix/CMakeLists.txt
-@@ -23,10 +23,14 @@ add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
+@@ -23,10 +23,20 @@ add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
  target_include_directories(binaryninjaapi
      PUBLIC ${PROJECT_SOURCE_DIR})
  
@@ -16,12 +16,18 @@ index 3fe70f9835c698ead14e057ecb6b80ead4d4616a..2665ef0bc5bbc2f7ebc37e5e91195037
 +    target_link_directories(binaryninjaapi PUBLIC ${BinaryNinjaCore_LIBRARY_DIRS})
 +    target_compile_definitions(binaryninjaapi PUBLIC ${BinaryNinjaCore_DEFINITIONS})
 +else()
-+    target_link_options(binaryninjaapi PUBLIC -undefined dynamic_lookup)
++    if(APPLE)
++        target_link_options(binaryninjaapi PUBLIC -undefined dynamic_lookup)
++    elseif(MSVC)
++        target_link_options(binaryninjaapi PUBLIC "LINKER:/FORCE:UNRESOLVED")
++    else()
++        target_link_options(binaryninjaapi PUBLIC "LINKER:--allow-shlib-undefined")
++    endif()
 +endif()
  
  set_target_properties(binaryninjaapi PROPERTIES
      CXX_STANDARD 17
-@@ -71,16 +75,18 @@ function(bn_install_plugin target)
+@@ -71,16 +81,18 @@ function(bn_install_plugin target)
          list(APPEND CMAKE_MODULE_PATH "${BN_API_SOURCE_DIR}/cmake")
  
          # BinaryNinjaCore has the user plugins dir define that we want
