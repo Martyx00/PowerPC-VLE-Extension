@@ -1,2 +1,2 @@
 # binja-ci-tests
-WIP attempts to set up building binja plugins on GitHub Actions without the hassle of needing a headless license.
+Tooling that lets you compile your Binary Ninja plugins headlessly in GitHub Actions CI. Based on [setup-binary-ninja](https://github.com/emesare/setup-binary-ninja) by emesare.
