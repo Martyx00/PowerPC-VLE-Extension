@@ -16,15 +16,15 @@ jobs:
       matrix:
         config:
         - {
-            os: windows-latest,
+            os: windows-2019,
             name: windows
           }
         - {
-            os: macos-latest,
+            os: macos-12,
             name: macos
           }
         - {
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             name: ubuntu
           }
         version: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, v3.5.4526-stable ]
