@@ -27,7 +27,7 @@ jobs:
             os: ubuntu-latest,
             name: ubuntu
           }
-        version: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, dev ]
+        version: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, v3.5.4526-stable ]
     steps:
     - uses: actions/checkout@v3
       with:
