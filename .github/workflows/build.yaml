@@ -51,9 +51,9 @@ jobs:
       shell: bash
       run: |
         cd binaryninjaapi
-        if (git branch --contains 9524254213477521804542721606710671523772 | grep HEAD > /dev/null 2>&1); then
+        if (git branch --contains 9524254213477521804542721606710671523772 | grep "" > /dev/null 2>&1); then
           git apply --verbose ../.github/workflows/4.1_0001-Support-building-plugins-without-an-install.patch
-        elif (git branch --contains v4.0.4958-stable | grep HEAD > /dev/null 2>&1); then
+        elif (git branch --contains v4.0.4958-stable | grep "" > /dev/null 2>&1); then
           git apply --verbose ../.github/workflows/4.0_0001-Support-building-plugins-without-an-install.patch
         else
           git apply --verbose ../.github/workflows/3.5_0001-Support-building-plugins-without-an-install.patch
