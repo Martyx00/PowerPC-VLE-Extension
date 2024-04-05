@@ -39,6 +39,7 @@ jobs:
         cd binaryninjaapi
         git fetch --tags
         git checkout --force ${{matrix.version}}
+        git submodule update --init --recursive
     - name: Patch api to allow building headlessly
       run: |
         cd binaryninjaapi
