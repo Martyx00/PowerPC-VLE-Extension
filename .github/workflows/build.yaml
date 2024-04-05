@@ -46,6 +46,7 @@ jobs:
         git checkout --force ${{matrix.version}}
         git submodule update --init --recursive
     - name: Patch api to allow building headlessly
+      shell: bash
       run: |
         cd binaryninjaapi
         if (git branch --contains v4.0.4958-stable | grep HEAD > /dev/null 2>&1); then
