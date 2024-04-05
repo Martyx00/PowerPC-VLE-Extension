@@ -1,8 +1,19 @@
-diff --git forkSrcPrefix/CMakeLists.txt forkDstPrefix/CMakeLists.txt
-index 3fe70f9835c698ead14e057ecb6b80ead4d4616a..3da466837461831b09cb0f928018c2c91dbf6141 100644
---- forkSrcPrefix/CMakeLists.txt
-+++ forkDstPrefix/CMakeLists.txt
-@@ -23,10 +23,20 @@ add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
+From 34e7f0a80b85c4b125ec3a0dc0937606df63335a Mon Sep 17 00:00:00 2001
+From: Glenn Smith <glenn@vector35.com>
+Date: Thu, 4 Apr 2024 21:49:55 -0700
+Subject: [PATCH] Support building plugins without an install
+
+---
+ CMakeLists.txt          |  56 ++++++++++++++-----
+ cmake/generate_stubs.py | 121 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 163 insertions(+), 14 deletions(-)
+ create mode 100644 cmake/generate_stubs.py
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 3fe70f98..d85d2c17 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -23,10 +23,36 @@ add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
  target_include_directories(binaryninjaapi
      PUBLIC ${PROJECT_SOURCE_DIR})
  
@@ -43,7 +54,7 @@ index 3fe70f9835c698ead14e057ecb6b80ead4d4616a..3da466837461831b09cb0f928018c2c9
  
  set_target_properties(binaryninjaapi PROPERTIES
      CXX_STANDARD 17
-@@ -92,16 +102,18 @@ function(bn_install_plugin target)
+@@ -71,16 +97,18 @@ function(bn_install_plugin target)
          list(APPEND CMAKE_MODULE_PATH "${BN_API_SOURCE_DIR}/cmake")
  
          # BinaryNinjaCore has the user plugins dir define that we want
@@ -72,3 +83,134 @@ index 3fe70f9835c698ead14e057ecb6b80ead4d4616a..3da466837461831b09cb0f928018c2c9
          endif()
      endif()
  endfunction()
+diff --git a/cmake/generate_stubs.py b/cmake/generate_stubs.py
+new file mode 100644
+index 00000000..4e062037
+--- /dev/null
++++ b/cmake/generate_stubs.py
+@@ -0,0 +1,121 @@
++# Copyright (c) 2015-2024 Vector 35 Inc
++#
++# Permission is hereby granted, free of charge, to any person obtaining a copy
++# of this software and associated documentation files (the "Software"), to
++# deal in the Software without restriction, including without limitation the
++# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++# sell copies of the Software, and to permit persons to whom the Software is
++# furnished to do so, subject to the following conditions:
++#
++# The above copyright notice and this permission notice shall be included in
++# all copies or substantial portions of the Software.
++#
++# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++# IN THE SOFTWARE.
++
++# Based on BinExport
++
++# Copyright 2011-2024 Google LLC
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     https://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++import argparse
++import os
++import re
++import sys
++
++parser = argparse.ArgumentParser(sys.argv[0])
++parser.add_argument("core_header")
++parser.add_argument("build_dir")
++
++options = parser.parse_args()
++
++print(f"GENERATE STUBS: {options.core_header} -> {options.build_dir}")
++print(f"{sys.executable} {' '.join(sys.argv)}")
++
++os.makedirs(options.build_dir, exist_ok=True)
++output_source = os.path.join(options.build_dir, 'stubs.cpp')
++
++with open(output_source, 'w') as stubs:
++    stubs.write("""
++// Copyright (c) 2015-2024 Vector 35 Inc
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to
++// deal in the Software without restriction, including without limitation the
++// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++// sell copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++// IN THE SOFTWARE.
++
++// Based on BinExport
++
++// Copyright 2011-2024 Google LLC
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     https://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#define BINARYNINJACORE_LIBRARY
++#include "binaryninjacore.h"
++#undef BINARYNINJACORE_LIBRARY
++
++extern "C" {
++""")
++
++    with open(options.core_header, 'r') as header:
++        header_conts = header.read()
++    
++    # Quick preprocess of comments in case we have commented defs
++    header_conts = re.sub(r'//.*\n', '\n', header_conts)
++
++    # Pull out all core api functions to generate stubs
++    for match in re.finditer(
++        r'\t(BINARYNINJACOREAPI [^;]*);',
++        header_conts
++    ):
++        group = match.group(1)
++
++        # Void functions don't have a return
++        void_group = re.search(r'BINARYNINJACOREAPI void .*', group)
++        if void_group is not None:
++            stubs.write(f'{match.group(1)} {{ }}\n')
++        else:
++            stubs.write(f'{match.group(1)} {{ return {{ }}; }}\n')
++
++    stubs.write("""
++}
++    """)
+\ No newline at end of file
+-- 
+2.43.3
+
