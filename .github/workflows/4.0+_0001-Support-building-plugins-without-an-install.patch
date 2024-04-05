@@ -200,8 +200,8 @@ index 00000000..4e062037
 +    ):
 +        group = match.group(1)
 +
-+        # Void functions don't have a return
-+        void_group = re.search(r'(?m:)BINARYNINJACOREAPI\s*void\s*.*', group)
++        # Void functions don't have a return (TODO: breaks if we ever return a fn ptr)
++        void_group = re.search(r'(?m:)BINARYNINJACOREAPI\s+void\s+.*', group)
 +        if void_group is not None:
 +            stubs.write(f'{match.group(1)} {{ }}\n')
 +        else:
