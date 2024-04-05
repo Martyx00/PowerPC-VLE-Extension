@@ -15,10 +15,10 @@ jobs:
     strategy:
       matrix:
         config:
-#        - {
-#            os: windows-2019,
-#            name: windows
-#          }
+        - {
+            os: windows-2019,
+            name: windows
+          }
         - {
             os: macos-12,
             name: macos
@@ -27,7 +27,7 @@ jobs:
             os: ubuntu-20.04,
             name: ubuntu
           }
-        version: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, v3.5.4526-stable ]
+        version: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, v3.5.4526-stable, v4.0.4958-stable ]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -42,7 +42,7 @@ jobs:
     - name: Patch api to allow building headlessly
       run: |
         cd binaryninjaapi
-        git apply --verbose ../binja.patch
+        git apply --verbose .github/workflows/0001-Support-building-plugins-without-an-install.patch
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     - name: Build
