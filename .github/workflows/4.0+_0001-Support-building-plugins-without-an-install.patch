@@ -195,13 +195,13 @@ index 00000000..4e062037
 +
 +    # Pull out all core api functions to generate stubs
 +    for match in re.finditer(
-+        r'\t(BINARYNINJACOREAPI [^;]*);',
++        r'(?m:)\t(BINARYNINJACOREAPI [^;]*);',
 +        header_conts
 +    ):
 +        group = match.group(1)
 +
 +        # Void functions don't have a return
-+        void_group = re.search(r'BINARYNINJACOREAPI void .*', group)
++        void_group = re.search(r'(?m:)BINARYNINJACOREAPI\s*void\s*.*', group)
 +        if void_group is not None:
 +            stubs.write(f'{match.group(1)} {{ }}\n')
 +        else:
