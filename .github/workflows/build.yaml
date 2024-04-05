@@ -52,9 +52,9 @@ jobs:
       run: |
         cd binaryninjaapi
         if (git branch --contains v4.0.4958-stable | grep HEAD > /dev/null 2>&1); then
-          git apply --verbose ../.github/workflows/4.0+_0001-Support-building-plugins-without-an-install.patch
+          git apply -3 --verbose ../.github/workflows/4.0+_0001-Support-building-plugins-without-an-install.patch
         else
-          git apply --verbose ../.github/workflows/3.5-_0001-Support-building-plugins-without-an-install.patch
+          git apply -3 --verbose ../.github/workflows/3.5-_0001-Support-building-plugins-without-an-install.patch
         fi
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
