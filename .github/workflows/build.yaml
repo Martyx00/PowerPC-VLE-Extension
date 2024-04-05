@@ -40,7 +40,13 @@ jobs:
         git fetch --tags
         git checkout --force ${{matrix.version}}
         git submodule update --init --recursive
-    - name: Patch api to allow building headlessly
+    - name: Patch api to allow building headlessly (>= 4.0)
+      runs-on: v4.0.4958-stable
+      run: |
+        cd binaryninjaapi
+        git apply --verbose ../.github/workflows/0001-Support-building-plugins-without-an-install.patch
+    - name: Patch api to allow building headlessly (< 4.0)
+      runs-on: [ v03.02.03814, v3.3.3996, v3.4.4271-stable, v3.5.4526-stable ]
       run: |
         cd binaryninjaapi
         git apply --verbose ../.github/workflows/0001-Support-building-plugins-without-an-install.patch
