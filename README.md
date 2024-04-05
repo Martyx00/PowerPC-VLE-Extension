@@ -22,5 +22,5 @@ Other versions may work, though! Later versions of operating systems will likely
 
 The CI configuration and patches are based upon the work of various Open Source projects made by members of the Binary Ninja community:
 
-* [setup-binary-ninja](https://github.com/emesare/setup-binary-ninja) by emesare (MIT License)
+* [setup-binary-ninja](https://github.com/emesare/setup-binary-ninja) by emesare (ISC License)
 * [binexport](https://github.com/google/binexport) by Google (Apache 2.0 License)
