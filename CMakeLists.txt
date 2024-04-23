@@ -22,7 +22,7 @@
 
 cmake_minimum_required(VERSION 3.24)
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
-project(TestPlugin CXX)
+project(VLE_Extension CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -36,7 +36,10 @@ find_path(
 )
 add_subdirectory(${BN_API_PATH} api)
 
-add_library(${PROJECT_NAME} SHARED library.cpp)
+add_library(${PROJECT_NAME} SHARED 
+    vle_ext.cpp
+    libvle/vle.c
+    libvle/vle.h)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC binaryninjaapi)
 
