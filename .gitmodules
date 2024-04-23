@@ -1,3 +1,6 @@
 [submodule "binaryninjaapi"]
 	path = binaryninjaapi
 	url = https://github.com/Vector35/binaryninja-api
+[submodule "libvle"]
+	path = libvle
+	url = https://github.com/Martyx00/libvle
