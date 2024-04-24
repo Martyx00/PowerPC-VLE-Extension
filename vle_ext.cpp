@@ -9,13 +9,23 @@
 using namespace BinaryNinja;
 using namespace std;
 
+#define CTR_REG 3
 
-// This is a wrapper for the x86 architecture. Its useful for extending and improving
-// the existing core x86 architecture.
+// TODO add floating point instructions 0x11986ca
+// TODO add evfsmulx and others (look at IDA)
+
 class ppcVleArchitectureExtension : public ArchitectureHook
 {
   public:
 	ppcVleArchitectureExtension(Architecture* ppc) : ArchitectureHook(ppc) {}
+    
+    virtual size_t GetInstructionAlignment() const override {
+        return 2;
+    }
+
+    uint32_t get_r_reg(uint32_t value){
+        return value + 87;
+    }
 
 	virtual bool GetInstructionLowLevelIL(const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override
 	{
@@ -56,6 +66,183 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 				break;
 			}
 		}*/
+        vle_t* instr;
+        bool should_update_flags = false;
+        bool indirect = false;
+        BNLowLevelILLabel *label = NULL;
+        BNLowLevelILLabel *true_label = NULL;
+        BNLowLevelILLabel *false_label = NULL;
+        LowLevelILLabel true_tag;
+        LowLevelILLabel false_tag;
+        ExprId condition;
+        char instr_name[50];
+        
+        // TODO MarkLabel https://api.binary.ninja/cpp/group__lowlevelil.html#a881c1dcf42a56b3b3cb68a2419dd1f19
+        if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
+            strncpy(instr_name,instr->name,49);
+            //LogInfo("FOR %s GOT %d || %d", instr_name,strncmp(instr_name, "se_",3) == 0, strncmp(instr_name, "e_", 2) == 0);
+            if (strncmp(instr_name, "se_",3) == 0 || strncmp(instr_name, "e_", 2) == 0) {
+                //LogInfo("ENTERED");
+                if (instr_name[strlen(instr_name)-1] == '.') {
+                    should_update_flags = true;
+                    instr_name[strlen(instr_name)-1] = 0; // replace the dot with NULL byte so that we dont have to care
+                }
+                if (instr->op_type == OP_TYPE_SYNC) {
+                    il.AddInstruction(il.Nop());
+                } else if (instr->op_type == OP_TYPE_RET) {
+                    il.AddInstruction(il.Return(il.Register(4,this->GetLinkRegister())));
+                } else if (instr->op_type == OP_TYPE_TRAP) {
+                    il.AddInstruction(il.Return(il.Unimplemented()));
+                } else if (instr->op_type == OP_TYPE_JMP) {
+                    label = il.GetLabelForAddress(this, instr->fields[0].value);
+                    if (label) {
+                        il.AddInstruction(il.Goto(*label));
+                    } else {
+                        il.AddInstruction(il.ConstPointer(4, instr->fields[0].value));
+                    }
+                } else if (instr->op_type == OP_TYPE_CALL) {
+                    if (instr->fields[0].value != (uint32_t) addr + instr->size) {
+                        il.AddInstruction(il.Call(il.ConstPointer(4,instr->fields[0].value)));
+                    } else {
+                        il.AddInstruction(il.SetRegister(4,this->GetLinkRegister(),il.ConstPointer(4,instr->fields[0].value)));
+                    }
+                } else if (instr->op_type == OP_TYPE_CJMP) {
+                    /*
+                    if (instr->fields[0].type == TYPE_JMP) {
+                        result.AddBranch(TrueBranch, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
+                        result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
+                    } else if (instr->fields[0].type == TYPE_CR) {
+                        result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
+                        result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
+                    }
+                    */
+                    if (instr->fields[0].type == TYPE_JMP) {
+                        // True branch
+                        true_label = il.GetLabelForAddress(this, instr->fields[0].value);
+                        if (!true_label) {
+                            il.MarkLabel(true_tag);
+                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[0].value)));
+                        }
+                    } else if (instr->fields[0].type == TYPE_CR) {
+                        // True branch
+                        true_label = il.GetLabelForAddress(this, instr->fields[1].value);
+                        if (!true_label) {
+                            il.MarkLabel(true_tag);
+                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[1].value)));
+                        }
+                    } else {
+                        return false;
+                    }
+                    
+                    // False Branch
+                    false_label = il.GetLabelForAddress(this, ((uint32_t) addr + instr->size));
+                    if (!false_label) {
+                        il.MarkLabel(false_tag);
+                    }
+                    
+                    switch (instr->cond) {
+                        case COND_GE:
+                            condition = il.FlagGroup(3);
+                            break;
+                        case COND_LE:
+                            condition = il.FlagGroup(1);
+                            break;
+                        case COND_NE:
+                            condition = il.FlagGroup(5);
+                            break;
+                        case COND_VC:
+                            condition = il.Unimplemented();
+                            break;
+                        case COND_LT:
+                            condition = il.FlagGroup(0);
+                            break;
+                        case COND_GT:
+                            condition = il.FlagGroup(2);
+                            break;
+                        case COND_EQ:
+                            condition = il.FlagGroup(4);
+                            break;
+                        case COND_VS:
+                            condition = il.Unimplemented();
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (true_label && false_label)
+                        il.AddInstruction(il.If(condition,*true_label,*false_label));            
+                    else if (true_label)
+                        il.AddInstruction(il.If(condition,*true_label,false_tag));
+                    else if (false_label)
+                        il.AddInstruction(il.If(condition,true_tag,*false_label));
+                    else
+                        il.AddInstruction(il.If(condition,true_tag,false_tag));
+
+                } else if (strcmp(instr_name,"se_mtctr") == 0) {
+                    il.AddInstruction(il.SetRegister(4, CTR_REG, il.Register(4, this->get_r_reg(instr->fields[0].value))));
+                } else if (strcmp(instr_name,"se_mfctr") == 0) {
+                    il.AddInstruction(il.SetRegister(4, this->get_r_reg(instr->fields[0].value), il.Register(4, CTR_REG)));
+                } else if (strcmp(instr_name,"se_mflr") == 0) {
+                    il.AddInstruction(il.SetRegister(4, this->get_r_reg(instr->fields[0].value), il.Register(4, this->GetLinkRegister())));
+                } else if (strcmp(instr_name,"se_mtspr") == 0) {
+                    il.AddInstruction(il.SetRegister(4, CTR_REG, il.Register(4, this->get_r_reg(instr->fields[0].value))));
+                } else if (strcmp(instr_name,"se_mfspr") == 0) {
+                    il.AddInstruction(il.SetRegister(4, this->get_r_reg(instr->fields[0].value), il.Register(4, CTR_REG)));
+                } else if (strcmp(instr_name,"se_bctr") == 0) {
+                    il.AddInstruction(il.Jump(il.Register(4, CTR_REG)));
+                } else if (strcmp(instr_name,"se_bctrl") == 0) {
+                    il.AddInstruction(il.Call(il.Register(4, CTR_REG)));
+                } else if (strcmp(instr_name,"e_lis") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ShiftLeft(
+                                4,
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                ),
+                                il.Const(
+                                    4,
+                                    16
+                                )
+                            )
+                        )
+                    );
+                    LogInfo("%s AT 0x%x", instr_name, (uint32_t)addr);
+                } else if (false) {
+                
+                } else if (false) {
+                    
+                } else if (false) {
+
+                } else if (false) {
+                
+                } else if (false) {
+                    
+                } else if (false) {
+
+                } else if (false) {
+                
+                } else if (false) {
+                    
+                } else if (false) {
+
+                } else if (false) {
+                
+                } else if (false) {
+                    
+                } else if (false) {
+
+                } else if (false) {
+                   
+                } else {
+                    //LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
+                }
+                return true;
+            }
+        }
 		return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
 	}
 
@@ -64,7 +251,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            //if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2)) {
+            //if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
                 len = instr->size;
                 // Add instruction name
                 result.emplace_back(InstructionToken, instr->name);
@@ -119,16 +306,8 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 	{
         char tmp[256] = {0};
 		vle_t* instr;
-        if (addr == 0x11d0bb6) {
-            LogInfo("GOT TO %x", (uint32_t) addr);
-        }
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            //if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2)) {
-                if (addr == 0x11d0bb6) {
-                    vle_snprint(tmp, 256,(uint32_t) addr, instr);
-                    LogInfo("GOT %s",tmp);
-                    LogInfo("GOT %d", instr->op_type);
-                }
+            //if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
                 result.length = instr->size;
                 uint32_t target;
                 switch (instr->op_type) {
@@ -137,9 +316,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         break;
                     case OP_TYPE_CJMP:
                         if (instr->fields[0].type == TYPE_JMP) {
-                            if (addr == 0x011d0b66) {
-                                LogInfo("GOT %s %x %d",instr->name, instr->fields[0].value, instr->n);
-                            }
                             result.AddBranch(TrueBranch, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
                             result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
                         } else if (instr->fields[0].type == TYPE_CR) {
