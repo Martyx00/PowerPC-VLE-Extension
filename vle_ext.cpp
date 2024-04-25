@@ -11,8 +11,21 @@ using namespace std;
 
 #define CTR_REG 3
 
+#define CR0_UNSIGNED_FLAG 2
+
+uint32_t cr_unsigned_array[] = {
+    2, // CR0
+    4, // CR1
+    6, // CR2
+    8, // CR3
+    10, // CR4
+    12, // CR5
+    14, // CR6
+    16 // CR7
+};
+
 // TODO add floating point instructions 0x11986ca
-// TODO add evfsmulx and others (look at IDA)
+// TODO add evfsmulx and others (look at IDA) 0115DDD0
 
 class ppcVleArchitectureExtension : public ArchitectureHook
 {
@@ -82,6 +95,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             strncpy(instr_name,instr->name,49);
             //LogInfo("FOR %s GOT %d || %d", instr_name,strncmp(instr_name, "se_",3) == 0, strncmp(instr_name, "e_", 2) == 0);
             if (strncmp(instr_name, "se_",3) == 0 || strncmp(instr_name, "e_", 2) == 0) {
+            //if (true) {
                 //LogInfo("ENTERED");
                 if (instr_name[strlen(instr_name)-1] == '.') {
                     should_update_flags = true;
@@ -210,35 +224,1664 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             )
                         )
                     );
-                    LogInfo("%s AT 0x%x", instr_name, (uint32_t)addr);
-                } else if (false) {
-                
-                } else if (false) {
+                    //LogInfo("%s AT 0x%x", instr_name, (uint32_t)addr);
+                } else if (strcmp(instr_name,"e_li") == 0 || strcmp(instr_name,"se_li") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Const(
+                                4,
+                                instr->fields[1].value
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_mr") == 0 || strcmp(instr_name,"se_mfar") == 0 || strcmp(instr_name,"se_mtar") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_add") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_add2i") == 0 || strcmp(instr_name,"se_addi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_add2is") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.ShiftLeft(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[1].value
+                                    ),
+                                    il.Const(
+                                        4,
+                                        16
+                                    )
+                                )
+                            ),
+                            should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_add16i") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
                     
+                } else if (strcmp(instr_name,"e_addi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_stwu") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            4,
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_sthu") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            2,
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_stbu") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            1,
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_stw") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            4,
+                            il.Add(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                }else if (strcmp(instr_name,"se_stw") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            4,
+                            il.Add(
+                                4,
+                                il.ZeroExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_sth") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            2,
+                            il.Add(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_sth") == 0 ) {
+                    il.AddInstruction(
+                        il.Store(
+                            2,
+                            il.Add(
+                                4,
+                                il.ZeroExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_stb") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            1,
+                            il.Add(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_stb") == 0) {
+                    il.AddInstruction(
+                        il.Store(
+                            1,
+                            il.Add(
+                                4,
+                                il.ZeroExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_lwz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                4,
+                                il.Add(
+                                    4,
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
+                } else if (strcmp(instr_name,"e_lwz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                4,
+                                il.Add(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
+                } else if (strcmp(instr_name,"e_lhz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                2,
+                                il.Add(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_lhz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                2,
+                                il.Add(
+                                    4,
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_lbz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                1,
+                                il.Add(
+                                    4,
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lbz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                1,
+                                il.Add(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lbzu") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                1,
+                                il.Add(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lhzu") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                2,
+                                il.Add(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lwzu") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Load(
+                                4,
+                                il.Add(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_cmp") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_cmpi") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            il.Const(
+                                4,
+                                instr->fields[1].value
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_cmpl") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    //LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
+                } else if (strcmp(instr_name,"se_cmpli") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            il.Const(
+                                4,
+                                instr->fields[1].value
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
+                } else if (strcmp(instr_name,"e_cmpli") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Const(
+                                4,
+                                instr->fields[2].value
+                            ),
+                            cr_unsigned_array[instr->fields[0].value]
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_cmpl16i") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            il.Const(
+                                4,
+                                instr->fields[1].value
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_cmpi") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Const(
+                                4,
+                                instr->fields[2].value
+                            ),
+                            (cr_unsigned_array[instr->fields[0].value] - 1) // signed variant is always -1
+                        )
+                    );
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
+                } else if (strcmp(instr_name,"se_extzb") == 0) {
+                    il.AddInstruction(
+                        il.ZeroExtend(
+                            1,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_extzh") == 0) {
+                    il.AddInstruction(
+                        il.ZeroExtend(
+                            2,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_extsb") == 0) {
+                    il.AddInstruction(
+                        il.SignExtend(
+                            1,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_extsh") == 0) {
+                    il.AddInstruction(
+                        il.SignExtend(
+                            2,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                
+                } else if (strcmp(instr_name,"e_mulli") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Mult(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                )
+                            )
+                        )
+                    );
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);*/
+                } else if (strcmp(instr_name,"e_mull2i") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Mult(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_mullw") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Mult(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_neg") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Neg(
+                                4,
+                                il.Add( // TODO is this correct?
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    ),
+                                    il.Const(
+                                        4,
+                                        1
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_not") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Not(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_or") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_ori") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_or2i") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_or2is") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.ShiftLeft(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[1].value
+                                    ),
+                                    il.Const(
+                                        4,
+                                        16
+                                    )
+                                )
+                            )
+                        )
+                    );
+                    
+                } else if (strcmp(instr_name,"e_rlw") == 0) {
+                    il.SetRegister(
+                        4,
+                        this->get_r_reg(instr->fields[0].value),
+                        il.RotateLeft(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            ),
+                            should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_rlwi") == 0) {
+                    il.SetRegister(
+                        4,
+                        this->get_r_reg(instr->fields[0].value),
+                        il.RotateLeft(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            ),
+                            il.Const(
+                                4,
+                                instr->fields[2].value
+                            ),
+                            should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_rlwinm") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.RotateLeft(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                    il.Const(
+                                        4,
+                                        instr->fields[2].value
+                                    )
+                                ),
+                                il.Const(
+                                    4,
+                                    ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[3].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_rlwimi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.And(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    ),
+                                    il.Not(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[3].value)
+                                        )
+                                    )
+                                ),
+                                il.And(
+                                    4,
+                                    il.RotateLeft(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                            ),
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    ),
+                                    il.Const(
+                                        4,
+                                        ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[3].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_slwi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ShiftLeft(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                    /*
+                    LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
+                } else if (strcmp(instr_name,"se_slw") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ShiftLeft(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_slwi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ShiftLeft(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_sraw") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ArithShiftRight(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_srawi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ArithShiftRight(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            )
+                        )
+                    );
+                    
+                } else if (strcmp(instr_name,"e_srwi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.LogicalShiftRight(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                    
+                } else if (strcmp(instr_name,"se_srw") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.LogicalShiftRight(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+                    
+                } else if (strcmp(instr_name,"se_srwi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.LogicalShiftRight(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_stmw") == 0) {
+                    int offset_counter = instr->fields[2].value;
+                    for (int i = instr->fields[0].value; i < 32; i++) {
+                        il.AddInstruction(
+                            il.Store(
+                                4,
+                                il.Add(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    ),
+                                    il.Const(
+                                        4,
+                                        offset_counter
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(i)
+                                )
+                            )
+                        );
+                        offset_counter += 4;
+                    }
+                    
+                } else if (strcmp(instr_name,"se_sub") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Sub(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+
+                } else if (strcmp(instr_name,"se_subf") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Sub(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_subfic") == 0) {
+                    il.AddInstruction( // TODO carry?
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Sub(
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_subi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Sub(
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_xori") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Xor(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+
+                } else if (strcmp(instr_name,"se_mtlr") == 0) {
+                    //this->GetLinkRegister()
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->GetLinkRegister(),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lmw") == 0) {
+                    int offset_counter = instr->fields[2].value;
+                    for (int i = instr->fields[0].value; i < 32; i++) {
+                        il.AddInstruction(
+                            il.SetRegister(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(i)
+                                ),
+                                il.Load(
+                                    4,
+                                    il.Add(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Const(
+                                            4,
+                                            offset_counter
+                                        )
+                                    )
+                                )
+                            )
+                        );
+                        offset_counter += 4;
+                    }
+
+                } else if (strcmp(instr_name,"se_and") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_andi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_andc") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Neg(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_andi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_and2i") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_and2is") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.ShiftLeft(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        instr->fields[1].value
+                                    ),
+                                    il.Const(
+                                        4,
+                                        16
+                                    )
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_bmaski") == 0) {
+                    if (instr->fields[1].value == 0) { // All 1 in case of 0
+                        il.AddInstruction(
+                            il.SetRegister(
+                                4,
+                                this->get_r_reg(instr->fields[0].value),
+                                il.Const(
+                                    4,
+                                    0xFFFFFFFF
+                                )
+                            )
+                        );                        
+                    }
+                    else {
+                        il.AddInstruction(
+                            il.SetRegister(
+                                this->get_r_reg(instr->fields[0].value),
+                                4,
+                                il.Const(
+                                    4,
+                                    (1 << (instr->fields[1].value + 1)) - 1
+                                )
+                            )
+                        );          
+                    }
+
                 } else if (false) {
 
                 } else if (false) {
-                
-                } else if (false) {
-                    
+
                 } else if (false) {
 
                 } else if (false) {
-                
-                } else if (false) {
-                    
+
                 } else if (false) {
 
                 } else if (false) {
-                
-                } else if (false) {
-                    
+
                 } else if (false) {
 
                 } else if (false) {
-                   
+
+                } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+                    LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);
                 } else {
-                    //LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
+                    LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
+
+                    il.AddInstruction(il.Unimplemented());
+                }
+                return true;
+            } else {
+                // TODO these should be hadnled by PowerPC but are not
+                if (strcmp(instr_name,"cntlzw") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            )
+                        )
+                    );
                 }
                 return true;
             }
@@ -251,11 +1894,12 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            //if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
+            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
+            //if (true) {
                 len = instr->size;
                 // Add instruction name
                 result.emplace_back(InstructionToken, instr->name);
-                result.emplace_back(TextToken, " ");
+                result.emplace_back(TextToken, " "); //TODO align operands
                 char hex_val[20] = {0};
                 char reg_str[10] = {0};
                 for (int op_index = 0; op_index < instr->n; op_index++) {
@@ -269,14 +1913,14 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             result.emplace_back(IntegerToken, hex_val, instr->fields[op_index].value);
                             break;
                         case TYPE_MEM:
-                            if (op_index < (instr->n -1)){
-                                sprintf(reg_str, "r%d", instr->fields[op_index].value); 
-                                sprintf(hex_val, "0x%x", instr->fields[op_index+1].value); 
-                                result.emplace_back(IntegerToken, hex_val, instr->fields[op_index].value);
-                                result.emplace_back(OperandSeparatorToken, "(");
-                                result.emplace_back(RegisterToken, reg_str);
-                                result.emplace_back(OperandSeparatorToken, ")");
-                            }
+                            result.pop_back();
+                            result.pop_back();
+                            sprintf(reg_str, "r%d", instr->fields[op_index-1].value); 
+                            sprintf(hex_val, "0x%x", instr->fields[op_index].value); 
+                            result.emplace_back(IntegerToken, hex_val, instr->fields[op_index].value);
+                            result.emplace_back(OperandSeparatorToken, "(");
+                            result.emplace_back(RegisterToken, reg_str);
+                            result.emplace_back(OperandSeparatorToken, ")");
                             break;
                         case TYPE_JMP:
                             sprintf(hex_val, "0x%x", (instr->fields[op_index].value));// + (uint32_t) addr)); 
@@ -296,7 +1940,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 LogInfo("GOT %s",tmp);
                 LogInfo("GOT %d", instr->op_type);*/
                 return true;
-            //}
+            }
 			
         }
 		return ArchitectureHook::GetInstructionText(data, addr, len, result);
@@ -307,7 +1951,8 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            //if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
+            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
+            //if (true) {
                 result.length = instr->size;
                 uint32_t target;
                 switch (instr->op_type) {
@@ -352,7 +1997,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 LogInfo("GOT %s",tmp);
                 LogInfo("GOT %d", instr->op_type);*/
                 return true;
-            //}
+            }
 			
         }
 		return ArchitectureHook::GetInstructionInfo(data, addr, maxLen, result);
