@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <cstring>
 #include "binaryninjaapi.h"
+#include "binaryninjacore.h"
+#include "lowlevelilinstruction.h"
 #include "libvle/vle.h"
 #include "vle_ext.h"
 
@@ -24,6 +26,10 @@ uint32_t cr_unsigned_array[] = {
     16 // CR7
 };
 
+enum VLEIntrinsics{
+    CNTLWZ_INTRINSIC
+};
+
 // TODO add floating point instructions 0x11986ca
 // TODO add evfsmulx and others (look at IDA) 0115DDD0
 
@@ -38,6 +44,44 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 
     uint32_t get_r_reg(uint32_t value){
         return value + 87;
+    }
+
+    virtual std::string GetIntrinsicName (uint32_t intrinsic) override {
+         switch (intrinsic)  {
+            case CNTLWZ_INTRINSIC:
+                return "CountLeadingZeros";
+            default:
+                return "";
+            }
+    }
+
+    virtual std::vector<uint32_t> GetAllIntrinsics() override {
+        return vector<uint32_t> {
+            CNTLWZ_INTRINSIC
+        };
+    }
+
+    virtual std::vector<NameAndType> GetIntrinsicInputs (uint32_t intrinsic) override {
+        switch (intrinsic)
+            {
+                case CNTLWZ_INTRINSIC:
+                    return {
+                        NameAndType("WORD", Type::IntegerType(4, false))
+                    };
+                default:
+                    return vector<NameAndType>();
+            }
+    }
+
+    virtual std::vector<Confidence<Ref<Type>>> GetIntrinsicOutputs (uint32_t intrinsic) override {
+        switch (intrinsic)
+            {
+                case CNTLWZ_INTRINSIC:
+                    return { Type::IntegerType(4, false) };
+                    //return vector<Confidence<Ref<Type>>>();
+                default:
+                    return vector<Confidence<Ref<Type>>>();
+            }
     }
 
 	virtual bool GetInstructionLowLevelIL(const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override
@@ -94,9 +138,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
             strncpy(instr_name,instr->name,49);
             //LogInfo("FOR %s GOT %d || %d", instr_name,strncmp(instr_name, "se_",3) == 0, strncmp(instr_name, "e_", 2) == 0);
+            len = instr->size;
             if (strncmp(instr_name, "se_",3) == 0 || strncmp(instr_name, "e_", 2) == 0) {
             //if (true) {
                 //LogInfo("ENTERED");
+                //len = instr->size;
                 if (instr_name[strlen(instr_name)-1] == '.') {
                     should_update_flags = true;
                     instr_name[strlen(instr_name)-1] = 0; // replace the dot with NULL byte so that we dont have to care
@@ -121,7 +167,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         il.AddInstruction(il.SetRegister(4,this->GetLinkRegister(),il.ConstPointer(4,instr->fields[0].value)));
                     }
                 } else if (instr->op_type == OP_TYPE_CJMP) {
-                    /*
+                    /* 
                     if (instr->fields[0].type == TYPE_JMP) {
                         result.AddBranch(TrueBranch, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
                         result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
@@ -142,7 +188,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         true_label = il.GetLabelForAddress(this, instr->fields[1].value);
                         if (!true_label) {
                             il.MarkLabel(true_tag);
-                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[1].value)));
+                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[1].value + addr)));
                         }
                     } else {
                         return false;
@@ -425,10 +471,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     il.AddInstruction(
                         il.SetRegister(
                             4,
-                            il.Register(
-                                4,
-                                this->get_r_reg(instr->fields[1].value)
-                            ),
+                            this->get_r_reg(instr->fields[1].value),
                             il.Add(
                                 4,
                                 il.Register(
@@ -472,10 +515,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     il.AddInstruction(
                         il.SetRegister(
                             4,
-                            il.Register(
-                                4,
-                                this->get_r_reg(instr->fields[1].value)
-                            ),
+                            this->get_r_reg(instr->fields[1].value),
                             il.Add(
                                 4,
                                 il.Register(
@@ -953,6 +993,69 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             CR0_UNSIGNED_FLAG
                         )
                     );
+                } else if (strcmp(instr_name,"e_cmph") == 0 || strcmp(instr_name,"se_cmph") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.SignExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            ),
+                            il.SignExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_cmphl") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.ZeroExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            ),
+                            il.ZeroExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_cmphl16i") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.ZeroExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            ),
+                            il.ZeroExtend(
+                                4,
+                                il.Const(
+                                    2,
+                                    instr->fields[1].value
+                                )
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
                 } else if (strcmp(instr_name,"se_cmpi") == 0) {
                     il.AddInstruction(
                         il.Sub(
@@ -1305,6 +1408,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         )
                     );
                 } else if (strcmp(instr_name,"e_rlwinm") == 0) {
+                    //011b408a
                     il.AddInstruction(
                         il.SetRegister(
                             4,
@@ -1324,7 +1428,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 ),
                                 il.Const(
                                     4,
-                                    ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[3].value)
+                                    ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
                                 )
                             )
                         )
@@ -1346,7 +1450,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         4,
                                         il.Const(
                                             4,
-                                            ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[3].value)
+                                            ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
                                         )
                                     )
                                 ),
@@ -1365,7 +1469,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     ),
                                     il.Const(
                                         4,
-                                        ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[3].value)
+                                        ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
                                     )
                                 )
                             )
@@ -1594,6 +1698,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             4,
                             this->get_r_reg(instr->fields[0].value),
                             il.Sub(
+                                4,
                                 il.Const(
                                     4,
                                     instr->fields[2].value
@@ -1612,6 +1717,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             4,
                             this->get_r_reg(instr->fields[0].value),
                             il.Sub(
+                                4,
                                 il.Const(
                                     4,
                                     instr->fields[2].value
@@ -1824,8 +1930,8 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     else {
                         il.AddInstruction(
                             il.SetRegister(
-                                this->get_r_reg(instr->fields[0].value),
                                 4,
+                                this->get_r_reg(instr->fields[0].value),
                                 il.Const(
                                     4,
                                     (1 << (instr->fields[1].value + 1)) - 1
@@ -1834,6 +1940,212 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         );          
                     }
 
+                } else if (strcmp(instr_name,"e_lha") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.SignExtend(
+                                4,
+                                il.Load(
+                                    2,
+                                    il.Add(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lhau") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.SignExtend(
+                                4,
+                                il.Load(
+                                    2,
+                                    il.Add(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[1].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lhz") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ZeroExtend(
+                                4,
+                                il.Load(
+                                    2,
+                                    il.Add(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lhzu") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ZeroExtend(
+                                4,
+                                il.Load(
+                                    2,
+                                    il.Add(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Const(
+                                            4,
+                                            instr->fields[2].value
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[1].value),
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_lhzu") == 0) {
+                    il.AddInstruction(
+                        il.SystemCall()
+                    );
+                } else if (strcmp(instr_name,"se_btsti") == 0) {
+                    il.AddInstruction(
+                        il.SetFlag(
+                            CR0_UNSIGNED_FLAG, // TODO fix when I figure out on how flags work
+                            il.TestBit( // TODO is the order of params correct?
+                                4, 
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            )
+                        )
+                    );
+                    LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                    LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);
+                    //0107f1a8
+                } else if (strcmp(instr_name,"se_bseti") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.ZeroExtend(
+                                    4,
+                                    il.ShiftLeft(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            1
+                                        ),
+                                        il.Const(
+                                            4,
+                                            instr->fields[1].value
+                                        )
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            )
+                            
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_bgeni") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ZeroExtend(
+                                4,
+                                il.ShiftLeft(
+                                    4,
+                                    il.Const(
+                                        4,
+                                        1
+                                    ),
+                                    il.Const(
+                                        4,
+                                        instr->fields[1].value
+                                    )
+                                )
+                            )
+                        )
+                    );
                 } else if (false) {
 
                 } else if (false) {
@@ -1843,22 +2155,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 } else if (false) {
 
                 } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
-
-                } else if (false) {
+                    // TODO 011b409e se_bctr
                     LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
                     LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
                     LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
@@ -1873,18 +2170,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 // TODO these should be hadnled by PowerPC but are not
                 if (strcmp(instr_name,"cntlzw") == 0) {
                     il.AddInstruction(
-                        il.SetRegister(
-                            4,
-                            this->get_r_reg(instr->fields[0].value),
-                            il.Register(
-                                4,
-                                this->get_r_reg(instr->fields[1].value)
-                            )
+                        il.Intrinsic(
+                            { RegisterOrFlag::Register(this->get_r_reg(instr->fields[0].value)) }, // Outputs
+                            CNTLWZ_INTRINSIC,
+                            { il.Register(4, this->get_r_reg(instr->fields[1].value)) } // Inputs
                         )
                     );
-                }
-                return true;
+                    return true;
+                } 
+                
             }
+            
         }
 		return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
 	}
@@ -1964,8 +2260,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             result.AddBranch(TrueBranch, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
                             result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
                         } else if (instr->fields[0].type == TYPE_CR) {
-                            result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
-                            result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
+                            result.AddBranch(IndirectBranch);
+                            //result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
+                            //result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
                         } else {
                             return false;
                         }
