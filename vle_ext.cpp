@@ -166,6 +166,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     } else {
                         il.AddInstruction(il.SetRegister(4,this->GetLinkRegister(),il.ConstPointer(4,instr->fields[0].value)));
                     }
+                } else if (instr->op_type == OP_TYPE_RJMP) {
+                    if (addr == 0x11b409e) {
+                        LogInfo("GOT INSTR %s at 0x%x", instr->name, (uint32_t) addr);
+                    }
+                    il.SetIndirectBranches({ ArchAndAddr(this, addr + instr->size) }); // TODO this does not work
                 } else if (instr->op_type == OP_TYPE_CJMP) {
                     /* 
                     if (instr->fields[0].type == TYPE_JMP) {
@@ -185,6 +190,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         }
                     } else if (instr->fields[0].type == TYPE_CR) {
                         // True branch
+
                         true_label = il.GetLabelForAddress(this, instr->fields[1].value);
                         if (!true_label) {
                             il.MarkLabel(true_tag);
@@ -2091,10 +2097,10 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             )
                         )
                     );
-                    LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                    /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
                     LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
                     LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
-                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);
+                    LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);*/
                     //0107f1a8
                 } else if (strcmp(instr_name,"se_bseti") == 0) {
                     il.AddInstruction(
@@ -2161,7 +2167,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
                     LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);
                 } else {
-                    LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
+                    //LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
 
                     il.AddInstruction(il.Unimplemented());
                 }
@@ -2260,9 +2266,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             result.AddBranch(TrueBranch, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
                             result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
                         } else if (instr->fields[0].type == TYPE_CR) {
-                            result.AddBranch(IndirectBranch);
-                            //result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
-                            //result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
+                            //result.AddBranch(IndirectBranch);
+                            result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
+                            result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
                         } else {
                             return false;
                         }

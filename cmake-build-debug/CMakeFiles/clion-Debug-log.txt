@@ -1,0 +1,24 @@
+/opt/clion/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/opt/clion/bin/ninja/linux/x64/ninja -G Ninja -S /home/martin/Code/PowerPC-VLE-Extension -B /home/martin/Code/PowerPC-VLE-Extension/cmake-build-debug
+-- The CXX compiler identification is GNU 13.2.0
+-- The C compiler identification is GNU 13.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+CMake Error at /opt/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/FindPackageHandleStandardArgs.cmake:230 (message):
+  Could NOT find Binary Ninja installation.  Please configure with
+  -DBN_INSTALL_DIR=<path to Binary Ninja> or set the BN_INSTALL_DIR
+  environment variable.  (missing: CORE_LIBRARY)
+Call Stack (most recent call first):
+  /opt/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/FindPackageHandleStandardArgs.cmake:600 (_FPHSA_FAILURE_MESSAGE)
+  binaryninjaapi/cmake/FindBinaryNinjaCore.cmake:36 (find_package_handle_standard_args)
+  binaryninjaapi/CMakeLists.txt:33 (find_package)
+
+
+-- Configuring incomplete, errors occurred!
