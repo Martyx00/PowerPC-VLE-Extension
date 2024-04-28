@@ -12,8 +12,10 @@ using namespace BinaryNinja;
 using namespace std;
 
 #define CTR_REG 3
+#define MSR_REG 151 // TODO dummy use of PPC_REG_VS63
 
 #define CR0_UNSIGNED_FLAG 2
+#define IL_FLAG_XER_CA 34
 
 uint32_t cr_unsigned_array[] = {
     2, // CR0
@@ -32,6 +34,8 @@ enum VLEIntrinsics{
 
 // TODO add floating point instructions 0x11986ca
 // TODO add evfsmulx and others (look at IDA) 0115DDD0
+// TODO add Machine State Register
+// TODO MTSPR decoding
 
 class ppcVleArchitectureExtension : public ArchitectureHook
 {
@@ -45,6 +49,10 @@ class ppcVleArchitectureExtension : public ArchitectureHook
     uint32_t get_r_reg(uint32_t value){
         return value + 87;
     }
+
+    uint32_t get_cr_reg(uint32_t value){
+	    return value + 12;
+	}
 
     virtual std::string GetIntrinsicName (uint32_t intrinsic) override {
          switch (intrinsic)  {
@@ -152,7 +160,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 } else if (instr->op_type == OP_TYPE_RET) {
                     il.AddInstruction(il.Return(il.Register(4,this->GetLinkRegister())));
                 } else if (instr->op_type == OP_TYPE_TRAP) {
-                    il.AddInstruction(il.Return(il.Unimplemented()));
+                    il.AddInstruction(il.Return(il.Unimplemented())); // TODO implement as indirect jump?
                 } else if (instr->op_type == OP_TYPE_JMP) {
                     label = il.GetLabelForAddress(this, instr->fields[0].value);
                     if (label) {
@@ -170,7 +178,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     if (addr == 0x11b409e) {
                         LogInfo("GOT INSTR %s at 0x%x", instr->name, (uint32_t) addr);
                     }
-                    il.SetIndirectBranches({ ArchAndAddr(this, addr + instr->size) }); // TODO this does not work
+                    //il.AddInstruction(il.Jump(il.Register(4, CTR_REG)));
+                    //il.MarkLabel(false_tag);
+                    il.SetIndirectBranches({ ArchAndAddr(this, addr) }); // TODO this does not work
                 } else if (instr->op_type == OP_TYPE_CJMP) {
                     /* 
                     if (instr->fields[0].type == TYPE_JMP) {
@@ -194,7 +204,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         true_label = il.GetLabelForAddress(this, instr->fields[1].value);
                         if (!true_label) {
                             il.MarkLabel(true_tag);
-                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[1].value + addr)));
+                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[1].value)));
                         }
                     } else {
                         return false;
@@ -2152,6 +2162,151 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             )
                         )
                     );
+                } else if (strcmp(instr_name,"e_addic") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.AddCarry(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    instr->fields[2].value
+                                ),
+                                il.Flag(
+                                    IL_FLAG_XER_CA
+                                ),
+                                should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                            )
+                        )
+                    );
+
+                } else if (strcmp(instr_name,"se_bclri") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.And(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.Const(
+                                    4,
+                                    ~((1 << (31 - 6)) & 0xffffffff)
+                                )
+                            )
+                        )
+                    );
+
+                } else if (strcmp(instr_name,"e_cmphl16i") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.ZeroExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            ),
+                            il.ZeroExtend(
+                                4,
+                                il.Const(
+                                    2,
+                                    instr->fields[1].value
+                                )
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_cmp16i") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.SignExtend(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            ),
+                            il.SignExtend(
+                                4,
+                                il.Const(
+                                    4,
+                                    instr->fields[1].value
+                                )
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"se_sc") == 0) {
+                    il.AddInstruction(il.SystemCall());
+                } else if (strcmp(instr_name,"e_cmph16i") == 0) {
+                    il.AddInstruction(
+                        il.Sub(
+                            4,
+                            il.SignExtend(
+                                4,
+                                il.Register(
+                                    2,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            ),
+                            il.SignExtend(
+                                4,
+                                il.Const(
+                                    2,
+                                    instr->fields[1].value
+                                )
+                            ),
+                            CR0_UNSIGNED_FLAG
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_crand") == 0) {
+                    il.AddInstruction(il.Unimplemented());
+                    // TODO find how to map this to correct registers
+                    il.AddInstruction(
+                        il.SetFlag(
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.And(
+                                0,
+                                il.Flag(
+                                    this->get_cr_reg(instr->fields[1].value)
+                                ),
+                                il.Flag(
+                                    this->get_cr_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_crandc") == 0) {
+                    //il.AddInstruction(il.Unimplemented());
+                    //TODO find how to map this to correct registers
+                    //return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
+                    il.AddInstruction(
+                        il.SetFlag(
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.And(
+                                0,
+                                il.Flag(
+                                    this->get_cr_reg(instr->fields[1].value)
+                                ),
+                                il.Not(
+                                    0,
+                                    il.Flag(
+                                        this->get_cr_reg(instr->fields[2].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
                 } else if (false) {
 
                 } else if (false) {
@@ -2161,19 +2316,37 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 } else if (false) {
 
                 } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+
+                } else if (false) {
+                    // TODO e_crand
+                    // TODO e_beql
                     // TODO 011b409e se_bctr
                     LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
                     LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
                     LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
                     LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);
+                } else if (strcmp(instr_name,"se_illegal") == 0) {
+                    il.AddInstruction(il.Trap(0));
                 } else {
-                    //LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
+                    LogInfo("NOT LIFTED %s AT 0x%x", instr_name, (uint32_t)addr);
 
                     il.AddInstruction(il.Unimplemented());
                 }
                 return true;
             } else {
                 // TODO these should be hadnled by PowerPC but are not
+                // 011e6eb0 vaddsbs
+                // Floating points
+                // TODO wrteeX
+                // TODO mfspr and fridends
                 if (strcmp(instr_name,"cntlzw") == 0) {
                     il.AddInstruction(
                         il.Intrinsic(
@@ -2183,7 +2356,31 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         )
                     );
                     return true;
-                } 
+                } else if (strcmp(instr_name,"mtmsr") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            MSR_REG,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            )
+                        )
+                    );
+                    return true;
+                } else if (strcmp(instr_name,"mfmsr") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[0].value)
+                            ),
+                            MSR_REG
+                        )
+                    );
+                    return true;
+                }
                 
             }
             
