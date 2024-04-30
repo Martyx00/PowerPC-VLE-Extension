@@ -370,7 +370,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 
                     if (!true_label) {
                         il.MarkLabel(true_tag);
-                        LogInfo("LOOK AT 0x%x",(uint32_t)addr);
                     }
 
                     il.AddInstruction(il.Jump(il.ConstPointer(4,value)));
