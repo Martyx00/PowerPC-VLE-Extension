@@ -239,7 +239,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     if (!true_label) {
                         il.MarkLabel(true_tag);
                     }
+
                     il.AddInstruction(il.Call(il.ConstPointer(4,value)));
+
                     if (!false_label) {
                         il.MarkLabel(false_tag);
                     }
@@ -263,7 +265,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     // False Branch
                     false_label = il.GetLabelForAddress(this, ((uint32_t) addr + instr->size));
                     
-                    // TODO conditions may need to be split
                     switch (instr->cond) {
                         case COND_GE:
                             condition = il.FlagGroup(3);
@@ -373,7 +374,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     }
 
                     il.AddInstruction(il.Jump(il.ConstPointer(4,value)));
-                    
+
                     if (!false_label) {
                         il.MarkLabel(false_tag);
                     }
