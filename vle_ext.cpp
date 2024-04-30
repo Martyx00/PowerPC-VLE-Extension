@@ -181,41 +181,89 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     //il.AddInstruction(il.Jump(il.Register(4, CTR_REG)));
                     //il.MarkLabel(false_tag);
                     il.SetIndirectBranches({ ArchAndAddr(this, addr) }); // TODO this does not work
-                } else if (instr->op_type == OP_TYPE_CJMP) {
-                    /* 
-                    if (instr->fields[0].type == TYPE_JMP) {
-                        result.AddBranch(TrueBranch, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
-                        result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
-                    } else if (instr->fields[0].type == TYPE_CR) {
-                        result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
-                        result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
-                    }
-                    */
+                } else if (instr->op_type == OP_TYPE_CCALL) {
+                    uint32_t value;
                     if (instr->fields[0].type == TYPE_JMP) {
                         // True branch
                         true_label = il.GetLabelForAddress(this, instr->fields[0].value);
-                        if (!true_label) {
-                            il.MarkLabel(true_tag);
-                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[0].value)));
-                        }
+                        value = instr->fields[0].value;
                     } else if (instr->fields[0].type == TYPE_CR) {
                         // True branch
 
                         true_label = il.GetLabelForAddress(this, instr->fields[1].value);
-                        if (!true_label) {
-                            il.MarkLabel(true_tag);
-                            il.AddInstruction(il.Jump(il.ConstPointer(4,instr->fields[1].value)));
-                        }
+                        value = instr->fields[1].value;
                     } else {
                         return false;
                     }
                     
                     // False Branch
                     false_label = il.GetLabelForAddress(this, ((uint32_t) addr + instr->size));
+                    
+                    switch (instr->cond) {
+                        case COND_GE:
+                            condition = il.FlagGroup(3);
+                            break;
+                        case COND_LE:
+                            condition = il.FlagGroup(1);
+                            break;
+                        case COND_NE:
+                            condition = il.FlagGroup(5);
+                            break;
+                        case COND_VC:
+                            condition = il.Unimplemented();
+                            break;
+                        case COND_LT:
+                            condition = il.FlagGroup(0);
+                            break;
+                        case COND_GT:
+                            condition = il.FlagGroup(2);
+                            break;
+                        case COND_EQ:
+                            condition = il.FlagGroup(4);
+                            break;
+                        case COND_VS:
+                            condition = il.Unimplemented();
+                            break;
+                        default:
+                            break;
+                    };
+                    if (true_label && false_label)
+                        il.AddInstruction(il.If(condition,*true_label,*false_label));            
+                    else if (true_label)
+                        il.AddInstruction(il.If(condition,*true_label,false_tag));
+                    else if (false_label)
+                        il.AddInstruction(il.If(condition,true_tag,*false_label));
+                    else
+                        il.AddInstruction(il.If(condition,true_tag,false_tag));
+
+                    if (!true_label) {
+                        il.MarkLabel(true_tag);
+                    }
+                    il.AddInstruction(il.Call(il.ConstPointer(4,value)));
                     if (!false_label) {
                         il.MarkLabel(false_tag);
                     }
+
+                } else if (instr->op_type == OP_TYPE_CJMP) {
+                    int value;
+                    if (instr->fields[0].type == TYPE_JMP) {
+                        // True branch
+                        true_label = il.GetLabelForAddress(this, instr->fields[0].value);
+                        value = instr->fields[0].value;
+                        
+                    } else if (instr->fields[0].type == TYPE_CR) {
+                        // True branch
+                        true_label = il.GetLabelForAddress(this, instr->fields[1].value);
+                        value = instr->fields[1].value;
+                        
+                    } else {
+                        return false;
+                    }
                     
+                    // False Branch
+                    false_label = il.GetLabelForAddress(this, ((uint32_t) addr + instr->size));
+                    
+                    // TODO conditions may need to be split
                     switch (instr->cond) {
                         case COND_GE:
                             condition = il.FlagGroup(3);
@@ -245,6 +293,71 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             break;
                     }
 
+                    // Conditions using counter register
+                    if (strcmp(instr_name,"e_bdnz") == 0) {
+                        // Not equal to zero
+                        condition = il.CompareNotEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    CTR_REG
+                                ),
+                                il.Const(
+                                    4,
+                                    0
+                                )
+                            );
+                        // Decrement the counter
+                        il.AddInstruction(
+                                il.SetRegister(
+                                    4,
+                                    CTR_REG,
+                                    il.Sub(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            CTR_REG
+                                        ),
+                                        il.Const(
+                                            4,
+                                            1
+                                        )
+                                    )
+                                )
+                            );
+                    } else if (strcmp(instr_name,"e_bdz") == 0) {
+                        // Eequal to zero
+                        condition = il.CompareEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    CTR_REG
+                                ),
+                                il.Const(
+                                    4,
+                                    0
+                                )
+                            );
+                        // Decrement the counter
+                        il.AddInstruction(
+                                il.SetRegister(
+                                    4,
+                                    CTR_REG,
+                                    il.Sub(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            CTR_REG
+                                        ),
+                                        il.Const(
+                                            4,
+                                            1
+                                        )
+                                    )
+                                )
+                            );
+                    }
+
                     if (true_label && false_label)
                         il.AddInstruction(il.If(condition,*true_label,*false_label));            
                     else if (true_label)
@@ -254,6 +367,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     else
                         il.AddInstruction(il.If(condition,true_tag,false_tag));
 
+                    if (!true_label) {
+                        il.MarkLabel(true_tag);
+                        LogInfo("LOOK AT 0x%x",(uint32_t)addr);
+                    }
+
+                    il.AddInstruction(il.Jump(il.ConstPointer(4,value)));
+                    
+                    if (!false_label) {
+                        il.MarkLabel(false_tag);
+                    }
+                
                 } else if (strcmp(instr_name,"se_mtctr") == 0) {
                     il.AddInstruction(il.SetRegister(4, CTR_REG, il.Register(4, this->get_r_reg(instr->fields[0].value))));
                 } else if (strcmp(instr_name,"se_mfctr") == 0) {
@@ -2307,7 +2431,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             )
                         )
                     );
-                } else if (false) {
+                } else if (strcmp(instr_name,"e_mcrf") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_cr_reg(instr->fields[1].value)
+                            )
+                        )
+                    );
 
                 } else if (false) {
 
@@ -2380,6 +2514,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         )
                     );
                     return true;
+                } else if (strcmp(instr_name,"lbzx") == 0) {
+                    LogInfo("FOUND LBZX AT 0x%x",(uint32_t)addr);
+                    return true;
                 }
                 
             }
@@ -2441,7 +2578,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 return true;
             }
 			
-        }
+        } 
 		return ArchitectureHook::GetInstructionText(data, addr, len, result);
 	}
 
@@ -2455,6 +2592,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 result.length = instr->size;
                 uint32_t target;
                 switch (instr->op_type) {
+                    // TODO OP_TYPE_CCALL??
                     case OP_TYPE_JMP:
                         result.AddBranch(UnconditionalBranch,(instr->fields[0].value));// + (uint32_t) addr) & 0xffffffff);
                         break;
@@ -2465,6 +2603,18 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         } else if (instr->fields[0].type == TYPE_CR) {
                             //result.AddBranch(IndirectBranch);
                             result.AddBranch(TrueBranch,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
+                            result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
+                        } else {
+                            return false;
+                        }
+                        break;
+                    case OP_TYPE_CCALL:
+                        if (instr->fields[0].type == TYPE_JMP) {
+                            result.AddBranch(CallDestination, instr->fields[0].value);// + (uint32_t) addr) & 0xffffffff);
+                            result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
+                        } else if (instr->fields[0].type == TYPE_CR) {
+                            //result.AddBranch(IndirectBranch);
+                            result.AddBranch(CallDestination,(instr->fields[1].value));// + (uint32_t) addr) & 0xffffffff);
                             result.AddBranch(FalseBranch,(instr->size + addr) & 0xffffffff);
                         } else {
                             return false;
