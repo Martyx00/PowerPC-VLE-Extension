@@ -37,6 +37,7 @@ enum VLEIntrinsics{
 // TODO add Machine State Register
 // TODO MTSPR decoding
 // TODO e_bc and e_bcl e_bdz and e_bdzl signed jump value?
+// TODO show symobls in disass view?
 
 class ppcVleArchitectureExtension : public ArchitectureHook
 {
@@ -228,6 +229,71 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         default:
                             break;
                     };
+
+                    if (strcmp(instr_name,"e_bdnzl") == 0) {
+                        // Not equal to zero
+                        condition = il.CompareNotEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    CTR_REG
+                                ),
+                                il.Const(
+                                    4,
+                                    0
+                                )
+                            );
+                        // Decrement the counter
+                        il.AddInstruction(
+                                il.SetRegister(
+                                    4,
+                                    CTR_REG,
+                                    il.Sub(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            CTR_REG
+                                        ),
+                                        il.Const(
+                                            4,
+                                            1
+                                        )
+                                    )
+                                )
+                            );
+                    } else if (strcmp(instr_name,"e_bdzl") == 0) {
+                        // Equal to zero
+                        condition = il.CompareEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    CTR_REG
+                                ),
+                                il.Const(
+                                    4,
+                                    0
+                                )
+                            );
+                        // Decrement the counter
+                        il.AddInstruction(
+                                il.SetRegister(
+                                    4,
+                                    CTR_REG,
+                                    il.Sub(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            CTR_REG
+                                        ),
+                                        il.Const(
+                                            4,
+                                            1
+                                        )
+                                    )
+                                )
+                            );
+                    }
+
                     if (true_label && false_label)
                         il.AddInstruction(il.If(condition,*true_label,*false_label));            
                     else if (true_label)
@@ -328,7 +394,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 )
                             );
                     } else if (strcmp(instr_name,"e_bdz") == 0) {
-                        // Eequal to zero
+                        // Equal to zero
                         condition = il.CompareEqual(
                                 4,
                                 il.Register(
