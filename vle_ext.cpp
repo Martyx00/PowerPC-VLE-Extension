@@ -12,7 +12,7 @@ using namespace BinaryNinja;
 using namespace std;
 
 #define CTR_REG 3
-#define MSR_REG 151 // TODO dummy use of PPC_REG_VS63
+#define PPC_REG_MSR 152 // TODO dummy use of PPC_REG_VS63
 
 #define CR0_UNSIGNED_FLAG 2
 #define IL_FLAG_XER_CA 34
@@ -34,10 +34,8 @@ enum VLEIntrinsics{
 
 // TODO add floating point instructions 0x11986ca
 // TODO add evfsmulx and others (look at IDA) 0115DDD0
-// TODO add Machine State Register
 // TODO MTSPR decoding
-// TODO e_bc and e_bcl e_bdz and e_bdzl signed jump value?
-// TODO show symobls in disass view?
+// TODO e_bc and e_bcl e_bdz and e_bdzl signed jump value - check correctness.
 
 class ppcVleArchitectureExtension : public ArchitectureHook
 {
@@ -55,6 +53,52 @@ class ppcVleArchitectureExtension : public ArchitectureHook
     uint32_t get_cr_reg(uint32_t value){
 	    return value + 12;
 	}
+
+    // Registers override
+	virtual vector<uint32_t> GetAllRegisters() override
+	{
+		vector<uint32_t> result = ArchitectureHook::GetAllRegisters();
+        result.push_back(PPC_REG_MSR);
+		return result;
+	}
+
+
+	virtual std::vector<uint32_t> GetGlobalRegisters() override
+	{
+		//return vector<uint32_t>{ PPC_REG_R2, PPC_REG_R13, PPC_REG_MSR };
+        vector<uint32_t> result = ArchitectureHook::GetGlobalRegisters();
+        result.push_back(PPC_REG_MSR);
+        return result;
+	}
+
+
+	BNRegisterInfo RegisterInfo(uint32_t fullWidthReg, size_t offset, size_t size, bool zeroExtend = false)
+	{
+		BNRegisterInfo result;
+		result.fullWidthRegister = fullWidthReg;
+		result.offset = offset;
+		result.size = size;
+		result.extend = zeroExtend ? ZeroExtendToFullWidth : NoExtend;
+		return result;
+	}
+
+
+	virtual BNRegisterInfo GetRegisterInfo(uint32_t regId) override
+	{
+		//MYLOG("%s(%s)\n", __func__, powerpc_reg_to_str(regId));
+
+		switch(regId) {
+			// BNRegisterInfo RegisterInfo(uint32_t fullWidthReg, size_t offset,
+			//   size_t size, bool zeroExtend = false)
+            case PPC_REG_MSR: return RegisterInfo(PPC_REG_MSR, 0 ,4);
+			default:
+				//LogError("%s(%d == \"%s\") invalid argument", __func__,
+				//  regId, powerpc_reg_to_str(regId));
+				return ArchitectureHook::GetRegisterInfo(regId);
+		}
+	}
+
+    //------------------------------------------------------------------------------
 
     virtual std::string GetIntrinsicName (uint32_t intrinsic) override {
          switch (intrinsic)  {
@@ -2607,7 +2651,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     il.AddInstruction(
                         il.SetRegister(
                             4,
-                            MSR_REG,
+                            PPC_REG_MSR,
                             il.Register(
                                 4,
                                 this->get_r_reg(instr->fields[0].value)
@@ -2623,7 +2667,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 4,
                                 this->get_r_reg(instr->fields[0].value)
                             ),
-                            MSR_REG
+                            PPC_REG_MSR
                         )
                     );
                     return true;
