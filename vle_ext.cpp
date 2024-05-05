@@ -12,7 +12,7 @@ using namespace BinaryNinja;
 using namespace std;
 
 #define CTR_REG 3
-#define PPC_REG_MSR 152 // TODO dummy use of PPC_REG_VS63
+#define PPC_REG_MSR 152 
 
 #define CR0_UNSIGNED_FLAG 2
 #define IL_FLAG_XER_CA 34
@@ -2373,41 +2373,26 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         )
                     );
                 }  else if (strcmp(instr_name,"se_btsti") == 0) {
-                    // TODO can this be replaced with AND?
                     il.AddInstruction(
                         il.SetFlag(
                             CR0_UNSIGNED_FLAG,
-                            il.And(
+                            il.Not(
                                 4,
-                                il.Register(
+                                il.And(
                                     4,
-                                    this->get_r_reg(instr->fields[0].value)
-                                ),
-                                il.Const(
-                                    4,
-                                    1 << (31 - instr->fields[1].value)
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    ),
+                                    il.Const(
+                                        4,
+                                        1 << (31 - instr->fields[1].value)
+                                    )
                                 )
                             )
                         )
                     );
-                    /*
-                    il.AddInstruction(
-                        il.SetFlag(
-                            CR0_UNSIGNED_FLAG, // TODO fix when I figure out on how flags work
-                            il.TestBit( // TODO is the order of params correct?
-                                4, 
-                                il.Register(
-                                    4,
-                                    this->get_r_reg(instr->fields[0].value)
-                                ),
-                                il.Const(
-                                    4,
-                                    instr->fields[1].value
-                                )
-                            )
-                        )
-                    );
-                    */
+                    
                     
                     /*LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
                     LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
@@ -2431,7 +2416,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         ),
                                         il.Const(
                                             4,
-                                            instr->fields[1].value
+                                            31 - instr->fields[1].value
                                         )
                                     )
                                 ),
@@ -2488,7 +2473,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     );
 
                 } else if (strcmp(instr_name,"se_bclri") == 0) {
-                    il.AddInstruction( // TODO check with 01077f80 and 01077f9e
+                    il.AddInstruction(
                         il.SetRegister(
                             4,
                             this->get_r_reg(instr->fields[0].value),
