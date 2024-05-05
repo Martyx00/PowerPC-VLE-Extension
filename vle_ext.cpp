@@ -2488,7 +2488,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     );
 
                 } else if (strcmp(instr_name,"se_bclri") == 0) {
-                    il.AddInstruction(
+                    il.AddInstruction( // TODO check with 01077f80 and 01077f9e
                         il.SetRegister(
                             4,
                             this->get_r_reg(instr->fields[0].value),
