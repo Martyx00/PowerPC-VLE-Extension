@@ -29,7 +29,9 @@ uint32_t cr_unsigned_array[] = {
 };
 
 enum VLEIntrinsics{
-    CNTLWZ_INTRINSIC
+    CNTLWZ_INTRINSIC,
+    E_STMVGPRW_INTRINSIC,
+    E_LDMVGPRW_INTRINSIC
 };
 
 // TODO add floating point instructions 0x11986ca
@@ -104,6 +106,10 @@ class ppcVleArchitectureExtension : public ArchitectureHook
          switch (intrinsic)  {
             case CNTLWZ_INTRINSIC:
                 return "CountLeadingZeros";
+            case E_STMVGPRW_INTRINSIC:
+                return "Store (R0, R3:R12)";
+            case E_LDMVGPRW_INTRINSIC:
+                return "Load (R0, R3:R12)";
             default:
                 return "";
             }
@@ -111,7 +117,8 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 
     virtual std::vector<uint32_t> GetAllIntrinsics() override {
         return vector<uint32_t> {
-            CNTLWZ_INTRINSIC
+            CNTLWZ_INTRINSIC,
+            E_STMVGPRW_INTRINSIC
         };
     }
 
@@ -121,6 +128,14 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 case CNTLWZ_INTRINSIC:
                     return {
                         NameAndType("WORD", Type::IntegerType(4, false))
+                    };
+                case E_STMVGPRW_INTRINSIC:
+                    return {
+                        NameAndType("At", Type::IntegerType(4, false))
+                    };
+                case E_LDMVGPRW_INTRINSIC:
+                    return {
+                        NameAndType("From", Type::IntegerType(4, false))
                     };
                 default:
                     return vector<NameAndType>();
@@ -132,7 +147,23 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             {
                 case CNTLWZ_INTRINSIC:
                     return { Type::IntegerType(4, false) };
+                case E_STMVGPRW_INTRINSIC:
+                    return { };
                     //return vector<Confidence<Ref<Type>>>();
+                case E_LDMVGPRW_INTRINSIC:
+                    return {
+                        /*Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false),
+                        Type::IntegerType(4, false)*/
+                    };
                 default:
                     return vector<Confidence<Ref<Type>>>();
             }
@@ -140,43 +171,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 
 	virtual bool GetInstructionLowLevelIL(const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override
 	{
-        /*char tmp[256] = {0};
-		vle_t* instr;
-        vle_handle handle;
-        if ((instr = vle_decode_one(data, 4))) {
-			vle_snprint(tmp, 256,(uint32_t) addr, instr);
-            //LogInfo("GOT %s",tmp);
-        }*/
-        /*if (vle_init(&handle, data, 4, (uint32_t) addr)) {
-            printf("failed to initialize handle\n");
-            return false;
-        } else {
-            instr = vle_next(&handle);
-            LogInfo("ACTUALLY HERE: %s",instr->name);
-            if (strcmp(instr->name,"se_slwi") == 0) {
-                il.AddInstruction(il.Unimplemented());
-                vle_snprint(tmp, 256, instr);
-                LogInfo("ACTUALLY HERE: %s",tmp);
-                len = instr->size;
-                return true;
-            }
-        }
-        
-		if (asmx86::Disassemble32(data, addr, len, &instr))
-		{
-			switch (instr.operation)
-			{
-			case CPUID:
-				// The default implementation of CPUID doesn't set registers to constant values
-				// Here we'll emulate a Intel(R) Core(TM) i5-6267U CPU @ 2.90GHz with _eax set to 1
-				il.AddInstruction(il.Unimplemented());
-                LogInfo("ACTUALLY_HERE");
-				len = instr.size;
-				return true;
-			default:
-				break;
-			}
-		}*/
         vle_t* instr;
         bool should_update_flags = false;
         bool indirect = false;
@@ -193,7 +187,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             //LogInfo("FOR %s GOT %d || %d", instr_name,strncmp(instr_name, "se_",3) == 0, strncmp(instr_name, "e_", 2) == 0);
             len = instr->size;
             //LogError("Processing %s at 0x%x,",instr_name, addr);
-            if (strncmp(instr_name, "se_",3) == 0 || strncmp(instr_name, "e_", 2) == 0) {
+            if (strncmp(instr_name, "se_",3) == 0 || strncmp(instr_name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
             //if (true) {
                 //LogInfo("ENTERED");
                 //len = instr->size;
@@ -2605,12 +2599,775 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         )
                     );
 
-                } else if (false) {
+                } else if (strcmp(instr_name,"efsabs") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatAbs(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsadd") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatAdd(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                        
+                    );
+                } else if (strcmp(instr_name,"efscfh") == 0) {
+                    // TODO
+                } else if (strcmp(instr_name,"efscfsf") == 0) {
+                    // TODO
+                } else if (strcmp(instr_name,"efscfsi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.IntToFloat(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efscfuf") == 0) {
+                    // TODO
+                } else if (strcmp(instr_name,"efscfui") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.IntToFloat(
+                                4,
+                                il.ZeroExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efscmpgt") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.FloatCompareGreaterThan(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[2].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efscmpeq") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.FloatCompareEqual(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[2].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efscmplt") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.FloatCompareLessThan(
+                                4,
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[2].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efscth") == 0) {
+                    // TODO
+                } else if (strcmp(instr_name,"efsctsf") == 0) {
+                    // TODO
+                } else if (strcmp(instr_name,"efsctsi") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.SignExtend(
+                                4,
+                                il.FloatToInt(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsctsiz") == 0) {
+                    //TODO rounding?
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.SignExtend(
+                                4,
+                                il.FloatToInt(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsctuf") == 0) {
+                    // TODO
+                } else if (strcmp(instr_name,"efsctui") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ZeroExtend(
+                                4,
+                                il.FloatToInt(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsctuiz") == 0) {
+                    il.AddInstruction( // TODO rounding
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.ZeroExtend(
+                                4,
+                                il.FloatToInt(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsdiv") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatDiv(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsmadd") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatAdd(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.FloatMult(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[2].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsmax") == 0) {
+                    LowLevelILLabel true_tag;
+                    LowLevelILLabel false_tag;
+                    LowLevelILLabel end_tag;
+                    il.AddInstruction(
+                        il.If(
+                            il.FloatCompareGreaterEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            ),
+                            true_tag,
+                            false_tag
+                        )
+                    );
+                    il.MarkLabel(true_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            )
+                        )
+                    );
+                    il.AddInstruction(il.Goto(end_tag));
+                    il.MarkLabel(false_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            )
+                        )
+                    );
+                    il.MarkLabel(end_tag);
+                } else if (strcmp(instr_name,"efsmin") == 0) {
+                    LowLevelILLabel true_tag;
+                    LowLevelILLabel false_tag;
+                    LowLevelILLabel end_tag;
+                    il.AddInstruction(
+                        il.If(
+                            il.FloatCompareLessEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            ),
+                            true_tag,
+                            false_tag
+                        )
+                    );
+                    il.MarkLabel(true_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[1].value)
+                            )
+                        )
+                    );
+                    il.AddInstruction(il.Goto(end_tag));
+                    il.MarkLabel(false_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            )
+                        )
+                    );
+                    il.MarkLabel(end_tag);
+                } else if (strcmp(instr_name,"efsmsub") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatSub(
+                                4,
+                                il.FloatMult(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[2].value)
+                                    )
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                )
+                            )
+                        )
+                    );
 
-                } else if (false) {
+                } else if (strcmp(instr_name,"efsmul") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatMult(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsnabs") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Or(
+                                4,
+                                il.Const(
+                                    4,
+                                    0x80000000
+                                ),
+                                il.FloatAbs(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[1].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsneg") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatNeg(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                )
+                            )
+                        )
+                    );
 
-                } else if (false) {
+                } else if (strcmp(instr_name,"efsnmadd") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatNeg(
+                                4,
+                                il.FloatAdd(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    ),
+                                    il.FloatMult(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[2].value)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efsnmsub") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatNeg(
+                                4,
+                                il.FloatSub(
+                                    4,
+                                    il.FloatMult(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[2].value)
+                                        )
+                                    ),
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efssqrt") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatSqrt(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
 
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efssub") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.FloatSub(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efststeq") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.FloatCompareEqual(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efststgt") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.FloatCompareGreaterThan(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"efststlt") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_cr_reg(instr->fields[0].value),
+                            il.FloatCompareLessThan(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[2].value)
+                                )
+                            )
+                        )
+                    );
+                } else if (strcmp(instr_name,"e_ldmvgprw") == 0) {
+                    il.AddInstruction(
+                        il.Intrinsic(
+                            { 
+                                //RegisterOrFlag::Register(this->get_r_reg(instr->fields[0].value)) 
+                            }, // Outputs
+                            E_LDMVGPRW_INTRINSIC,
+                            {   
+                                il.Add(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value) 
+                                    ),
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            1,
+                                            instr->fields[1].value
+                                        )
+                                    )
+                                ),
+                                /*il.Register(4, this->get_r_reg(0)),
+                                il.Register(4, this->get_r_reg(3)),
+                                il.Register(4, this->get_r_reg(4)),
+                                il.Register(4, this->get_r_reg(5)),
+                                il.Register(4, this->get_r_reg(6)),
+                                il.Register(4, this->get_r_reg(7)),
+                                il.Register(4, this->get_r_reg(8)),
+                                il.Register(4, this->get_r_reg(9)),
+                                il.Register(4, this->get_r_reg(10)),
+                                il.Register(4, this->get_r_reg(11)),
+                                il.Register(4, this->get_r_reg(12))*/
+                            } // Inputs
+                        )
+                    );
+                    /*
+                        il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(0),
+                            il.Load(
+                                4,
+                                il.Add(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    ),
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            1,
+                                            instr->fields[1].value
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                    int r = 3;
+                    for (int i=1; i<11; i++) {
+                        il.AddInstruction(
+                            il.SetRegister(
+                                4,
+                                this->get_r_reg(r),
+                                il.Load(
+                                    4,
+                                    il.Add(
+                                        4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[0].value)
+                                        ),
+                                        il.Add(
+                                            4,
+                                            il.Const(
+                                                4,
+                                                4 * i
+                                            ),
+                                            il.SignExtend(
+                                                4,
+                                                il.Const(
+                                                    1,
+                                                    instr->fields[1].value
+                                                )
+                                            )
+                                        )
+                                        
+                                    )
+                                )
+                            )
+                        );
+                        r++;
+                    }
+                    */
+                    
+                } else if (strcmp(instr_name,"e_stmvgprw") == 0) {
+                    // It is actually pretier to use Intrinsic
+                    il.AddInstruction(
+                        il.Intrinsic(
+                            { 
+                                //RegisterOrFlag::Register(this->get_r_reg(instr->fields[0].value)) 
+                            }, // Outputs
+                            E_STMVGPRW_INTRINSIC,
+                            {   
+                                il.Add(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value) 
+                                    ),
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            1,
+                                            instr->fields[1].value
+                                        )
+                                    )
+                                ),
+                                /*il.Register(4, this->get_r_reg(0)),
+                                il.Register(4, this->get_r_reg(3)),
+                                il.Register(4, this->get_r_reg(4)),
+                                il.Register(4, this->get_r_reg(5)),
+                                il.Register(4, this->get_r_reg(6)),
+                                il.Register(4, this->get_r_reg(7)),
+                                il.Register(4, this->get_r_reg(8)),
+                                il.Register(4, this->get_r_reg(9)),
+                                il.Register(4, this->get_r_reg(10)),
+                                il.Register(4, this->get_r_reg(11)),
+                                il.Register(4, this->get_r_reg(12))*/
+                            } // Inputs
+                        )
+                    );
+                    /*
+                    il.AddInstruction(
+                        il.Store(
+                            4,
+                            il.Add(
+                                4,
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value)
+                                ),
+                                il.SignExtend(
+                                    4,
+                                    il.Const(
+                                        1,
+                                        instr->fields[1].value
+                                    )
+                                )
+                            ),
+                            il.Register(
+                                4,
+                                this->get_r_reg(0)
+                            )
+                        )
+                    );
+                    int r = 3;
+                    for (int i=1; i<11; i++) {
+                        il.AddInstruction(
+                            il.Store(
+                                4,
+                                il.Add(
+                                    4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value)
+                                    ),
+                                    il.Add(
+                                        4,
+                                        il.Const(
+                                            4,
+                                            4 * i
+                                        ),
+                                        il.SignExtend(
+                                            4,
+                                            il.Const(
+                                                1,
+                                                instr->fields[1].value
+                                            )
+                                        )
+                                    )
+                                    
+                                ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(r)
+                                )
+                            )
+                        );
+                        r++;
+                    }*/
                 } else if (false) {
 
                 } else if (false) {
@@ -2690,7 +3447,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
+            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
             //if (true) {
                 len = instr->size;
                 // Add instruction name
@@ -2736,7 +3493,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 LogInfo("GOT %s",tmp);
                 LogInfo("GOT %d", instr->op_type);*/
                 return true;
-            }
+            } 
 			
         } 
 		return ArchitectureHook::GetInstructionText(data, addr, len, result);
@@ -2747,7 +3504,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0) {
+            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
             //if (true) {
                 result.length = instr->size;
                 uint32_t target;
