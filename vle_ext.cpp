@@ -361,7 +361,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     }
                     il.AddInstruction(il.Jump(il.Register(4, CTR_REG)));
                     il.MarkLabel(false_tag);
-                    //il.SetIndirectBranches({ ArchAndAddr(this, addr) }); // TODO this does not work
+                    //il.SetIndirectBranches({ ArchAndAddr(this, addr + instr->size) }); // TODO this does not work
                 } else if (instr->op_type == OP_TYPE_CCALL) {
                     uint32_t value;
                     if (instr->fields[0].type == TYPE_JMP) {
@@ -2018,6 +2018,25 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                                 ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
                                             )
                                         )
+                                    )
+                                );
+                            } else if (instr->fields[2].value == 2) {
+                                il.AddInstruction(
+                                    il.SetRegister(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value),
+                                        il.Mult(
+                                            4,
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[1].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                4
+                                            )
+                                        )
+
                                     )
                                 );
                             } else {
@@ -3854,8 +3873,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 return true;
             } else {
                 // These should be hadnled by PowerPC but are not
-                // 011e6eb0 vaddsbs
-                // Floating points
                 // TODO wrteeX
                 // TODO mfspr and friends
                 if (strcmp(instr_name,"cntlzw") == 0) {
@@ -3910,9 +3927,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
             //if (true) {
                 len = instr->size;
-                // Add instruction name
-                result.emplace_back(InstructionToken, instr->name);
-                result.emplace_back(TextToken, " "); //TODO align operands
+                // Add instruction name stbx    
+                sprintf(tmp,"%-13s",instr->name);
+                result.emplace_back(InstructionToken, tmp);
+                //result.emplace_back(InstructionToken, instr->name);
+                result.emplace_back(TextToken, " ");
                 char hex_val[20] = {0};
                 char reg_str[10] = {0};
                 for (int op_index = 0; op_index < instr->n; op_index++) {
@@ -3956,7 +3975,20 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             } 
 			
         } 
-		return ArchitectureHook::GetInstructionText(data, addr, len, result);
+        ArchitectureHook::GetInstructionText(data, addr, len, result);
+        if (result.size() > 0) {
+            sprintf(tmp,"%-13s",result.at(0).text.c_str());
+            std::string str_name(tmp);
+            //LogInfo("GOT: |%s|",tmp);
+            //LogInfo("GOT: |%s|",result.at(1).text.c_str());
+            result.at(1).text = " ";
+            result.at(0).text = str_name;
+            return true;
+        }
+        
+        //sprintf(tmp,"%-14s",)
+        //result.at(0) 
+		return false;
 	}
 
     virtual bool GetInstructionInfo(const uint8_t *data, uint64_t addr, size_t maxLen, InstructionInfo &result) override
