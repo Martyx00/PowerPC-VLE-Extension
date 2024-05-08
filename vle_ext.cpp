@@ -2004,7 +2004,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     )
                                 );
                             
-                            } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[3].value == 0) {
+                            /*} else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[3].value == 0) {
                                 il.AddInstruction(
                                     il.SetRegister(
                                         4,
@@ -2021,7 +2021,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                             )
                                         )
                                     )
-                                );
+                                );*/
 
                             } else if (instr->fields[4].value + instr->fields[2].value == 0x1f || instr->fields[4].value <= instr->fields[2].value) {
                                 il.AddInstruction(
