@@ -2,6 +2,7 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 #include "binaryninjaapi.h"
 #include "binaryninjacore.h"
 #include "lowlevelilinstruction.h"
@@ -724,11 +725,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         4,
                                         il.Register(
                                             4,
-                                            this->get_r_reg(instr->fields[1].value)
+                                            this->get_r_reg(instr->fields[0].value)
                                         ),
                                         il.Register(
                                             4,
-                                            this->get_r_reg(instr->fields[0].value)
+                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     )
                                 )
@@ -1977,7 +1978,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         break;
                     case E_RLWINM:
                         {
-                            if (instr->fields[2].value == 31) {
+                            if (instr->fields[2].value > 0x10 && instr->fields[3].value == instr->fields[2].value - 0x10) {
                                 il.AddInstruction(
                                     il.SetRegister(
                                         4,
@@ -1992,7 +1993,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                                     ),
                                                 il.Const(
                                                     4,
-                                                    1
+                                                    instr->fields[3].value
                                                 )
                                             ),
                                             il.Const(
@@ -2002,6 +2003,52 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     )
                                 );
+                            
+                            } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[3].value == 0) {
+                                il.AddInstruction(
+                                    il.SetRegister(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value),
+                                        il.Mult(
+                                            4,
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[1].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                pow(2,instr->fields[2].value)
+                                            )
+                                        )
+                                    )
+                                );
+
+                            } else if (instr->fields[4].value + instr->fields[2].value == 0x1f || instr->fields[4].value <= instr->fields[2].value) {
+                                il.AddInstruction(
+                                    il.SetRegister(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value),
+                                        il.And(
+                                            4,
+                                            il.ShiftLeft(
+                                                4,
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
+                                                ),
+                                                il.Const(
+                                                    4,
+                                                    instr->fields[2].value
+                                                )
+                                            ),
+                                            il.Const(
+                                                4,
+                                                ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
+                                            )
+                                        )
+                                    )
+                                );
+                            
                             } else if (instr->fields[2].value == 0) {
                                 il.AddInstruction(
                                     il.SetRegister(
@@ -2018,25 +2065,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                                 ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
                                             )
                                         )
-                                    )
-                                );
-                            } else if (instr->fields[2].value == 2) {
-                                il.AddInstruction(
-                                    il.SetRegister(
-                                        4,
-                                        this->get_r_reg(instr->fields[0].value),
-                                        il.Mult(
-                                            4,
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
-                                            ),
-                                            il.Const(
-                                                4,
-                                                4
-                                            )
-                                        )
-
                                     )
                                 );
                             } else {
@@ -3927,11 +3955,16 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
             //if (true) {
                 len = instr->size;
-                // Add instruction name stbx    
-                sprintf(tmp,"%-13s",instr->name);
-                result.emplace_back(InstructionToken, tmp);
-                //result.emplace_back(InstructionToken, instr->name);
-                result.emplace_back(TextToken, " ");
+                // Add instruction name stbx
+                int name_len = strlen(instr->name);
+                for (int i = name_len; i < 14; i++) {
+                    tmp[i - name_len] = ' ';
+                }
+                tmp[14 - name_len] = 0;
+                //sprintf(tmp,"%-13s",instr->name);
+                //result.emplace_back(InstructionToken, tmp);
+                result.emplace_back(InstructionToken, instr->name);
+                result.emplace_back(TextToken, tmp);
                 char hex_val[20] = {0};
                 char reg_str[10] = {0};
                 for (int op_index = 0; op_index < instr->n; op_index++) {
@@ -3978,11 +4011,16 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         ArchitectureHook::GetInstructionText(data, addr, len, result);
         if (result.size() > 0) {
             sprintf(tmp,"%-13s",result.at(0).text.c_str());
-            std::string str_name(tmp);
+            int len = strlen(result.at(0).text.c_str());
+            for (int i = len; i < 14; i++) {
+                tmp[i - len] = ' ';
+            }
+            tmp[14 - len] = 0;
+            std::string str_space(tmp);
             //LogInfo("GOT: |%s|",tmp);
             //LogInfo("GOT: |%s|",result.at(1).text.c_str());
-            result.at(1).text = " ";
-            result.at(0).text = str_name;
+            result.at(1).text = str_space;
+            //result.at(0).text = str_name;
             return true;
         }
         
