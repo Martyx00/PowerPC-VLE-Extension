@@ -1203,20 +1203,23 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 il.SetRegister(
                                     4,
                                     this->get_r_reg(instr->fields[0].value),
-                                    il.Load(
-                                        2,
-                                        il.Add(
-                                            4,
-                                            il.SignExtend(
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Load(
+                                            2,
+                                            il.Add(
                                                 4,
-                                                il.Const(
-                                                    2,
-                                                    instr->fields[2].value
+                                                il.SignExtend(
+                                                    4,
+                                                    il.Const(
+                                                        2,
+                                                        instr->fields[2].value
+                                                    )
+                                                ),
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
                                                 )
-                                            ),
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
                                             )
                                         )
                                     )
@@ -1231,23 +1234,27 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 il.SetRegister(
                                     4,
                                     this->get_r_reg(instr->fields[0].value),
-                                    il.Load(
-                                        2,
-                                        il.Add(
-                                            4,
-                                            il.ZeroExtend(
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Load(
+                                            2,
+                                            il.Add(
                                                 4,
-                                                il.Const(
-                                                    1,
-                                                    instr->fields[2].value
+                                                il.ZeroExtend(
+                                                    4,
+                                                    il.Const(
+                                                        1,
+                                                        instr->fields[2].value
+                                                    )
+                                                ),
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
                                                 )
-                                            ),
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
                                             )
                                         )
                                     )
+                                    
 
                                 )
                             );
@@ -1259,24 +1266,27 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 il.SetRegister(
                                     4,
                                     this->get_r_reg(instr->fields[0].value),
-                                    il.Load(
-                                        1,
-                                        il.Add(
-                                            4,
-                                            il.ZeroExtend(
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Load(
+                                            1,
+                                            il.Add(
                                                 4,
-                                                il.Const(
-                                                    1,
-                                                    instr->fields[2].value
+                                                il.ZeroExtend(
+                                                    4,
+                                                    il.Const(
+                                                        1,
+                                                        instr->fields[2].value
+                                                    )
+                                                ),
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
                                                 )
-                                            ),
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
                                             )
                                         )
                                     )
-
+                                    
                                 )
                             );
                         }
@@ -1287,24 +1297,26 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 il.SetRegister(
                                     4,
                                     this->get_r_reg(instr->fields[0].value),
-                                    il.Load(
-                                        1,
-                                        il.Add(
-                                            4,
-                                            il.SignExtend(
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Load(
+                                            1,
+                                            il.Add(
                                                 4,
-                                                il.Const(
-                                                    2,
-                                                    instr->fields[2].value
+                                                il.SignExtend(
+                                                    4,
+                                                    il.Const(
+                                                        2,
+                                                        instr->fields[2].value
+                                                    )
+                                                ),
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
                                                 )
-                                            ),
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
                                             )
                                         )
                                     )
-
                                 )
                             );
                         }
@@ -1315,23 +1327,27 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 il.SetRegister(
                                     4,
                                     this->get_r_reg(instr->fields[0].value),
-                                    il.Load(
-                                        1,
-                                        il.Add(
-                                            4,
-                                            il.SignExtend(
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Load(
+                                            1,
+                                            il.Add(
                                                 4,
-                                                il.Const(
-                                                    2,
-                                                    instr->fields[2].value
+                                                il.SignExtend(
+                                                    4,
+                                                    il.Const(
+                                                        2,
+                                                        instr->fields[2].value
+                                                    )
+                                                ),
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
                                                 )
-                                            ),
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
                                             )
                                         )
                                     )
+                                    
 
                                 )
                             );
@@ -1363,23 +1379,27 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                 il.SetRegister(
                                     4,
                                     this->get_r_reg(instr->fields[0].value),
-                                    il.Load(
-                                        2,
-                                        il.Add(
-                                            4,
-                                            il.SignExtend(
+                                    il.ZeroExtend(
+                                        4,
+                                        il.Load(
+                                            2,
+                                            il.Add(
                                                 4,
-                                                il.Const(
-                                                    2,
-                                                    instr->fields[2].value
+                                                il.SignExtend(
+                                                    4,
+                                                    il.Const(
+                                                        2,
+                                                        instr->fields[2].value
+                                                    )
+                                                ),
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
                                                 )
-                                            ),
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
                                             )
                                         )
                                     )
+                                    
 
                                 )
                             );
