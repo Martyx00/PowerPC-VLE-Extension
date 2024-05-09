@@ -2004,24 +2004,32 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     )
                                 );
                             
-                            /*} else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[3].value == 0) {
+                            } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[2].value > 0 && instr->fields[2].value <= 4) {
                                 il.AddInstruction(
                                     il.SetRegister(
                                         4,
                                         this->get_r_reg(instr->fields[0].value),
-                                        il.Mult(
+                                        il.And(
                                             4,
-                                            il.Register(
+                                            il.Mult(
                                                 4,
-                                                this->get_r_reg(instr->fields[1].value)
+                                                il.Register(
+                                                    4,
+                                                    this->get_r_reg(instr->fields[1].value)
+                                                ),
+                                                il.Const(
+                                                    4,
+                                                    pow(2,instr->fields[2].value)
+                                                )
                                             ),
                                             il.Const(
                                                 4,
-                                                pow(2,instr->fields[2].value)
+                                                ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
                                             )
                                         )
+                                        
                                     )
-                                );*/
+                                );
 
                             } else if (instr->fields[4].value + instr->fields[2].value == 0x1f || instr->fields[4].value <= instr->fields[2].value) {
                                 il.AddInstruction(
