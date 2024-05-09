@@ -345,6 +345,15 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     il.AddInstruction(il.Return(il.Unimplemented())); 
                 } else if (instr->op_type == OP_TYPE_JMP) {
                     label = il.GetLabelForAddress(this, instr->fields[0].value);
+                    BinaryNinja::Function *current_func = il.GetFunction().GetPtr();
+                    if (current_func) {
+                        if (instr->fields[0].value < current_func->GetLowestAddress() || instr->fields[0].value > current_func->GetHighestAddress()) {
+                            //LogInfo("JUMPING 0x%x ELSEWHERE", addr);
+                            il.AddInstruction(il.Call(il.ConstPointer(4,instr->fields[0].value)));
+                            il.AddInstruction(il.Return(this->GetLinkRegister()));
+                        }
+                    }
+                    
                     if (label) {
                         il.AddInstruction(il.Goto(*label));
                     } else {
@@ -986,16 +995,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     4,
                                     il.Add(
                                         4,
+                                        
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
                                         il.SignExtend(
                                             4,
                                             il.Const(
                                                 2,
                                                 instr->fields[2].value
                                             )
-                                        ),
-                                        il.Register(
-                                            4,
-                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
                                     il.Register(
@@ -1013,16 +1023,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     4,
                                     il.Add(
                                         4,
+                                        
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
                                         il.ZeroExtend(
                                             4,
                                             il.Const(
                                                 1,
                                                 instr->fields[2].value
                                             )
-                                        ),
-                                        il.Register(
-                                            4,
-                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
                                     il.Register(
@@ -1040,16 +1051,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     2,
                                     il.Add(
                                         4,
+                                        
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
                                         il.SignExtend(
                                             4,
                                             il.Const(
                                                 2,
                                                 instr->fields[2].value
                                             )
-                                        ),
-                                        il.Register(
-                                            4,
-                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
                                     il.Register(
@@ -1067,16 +1079,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     2,
                                     il.Add(
                                         4,
+                                        
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
                                         il.ZeroExtend(
                                             4,
                                             il.Const(
                                                 1,
                                                 instr->fields[2].value
                                             )
-                                        ),
-                                        il.Register(
-                                            4,
-                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
                                     il.Register(
@@ -1094,16 +1107,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     1,
                                     il.Add(
                                         4,
+                                        
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
                                         il.SignExtend(
                                             4,
                                             il.Const(
                                                 2,
                                                 instr->fields[2].value
                                             )
-                                        ),
-                                        il.Register(
-                                            4,
-                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
                                     il.Register(
@@ -1121,16 +1135,17 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     1,
                                     il.Add(
                                         4,
+                                        
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        ),
                                         il.ZeroExtend(
                                             4,
                                             il.Const(
                                                 1,
                                                 instr->fields[2].value
                                             )
-                                        ),
-                                        il.Register(
-                                            4,
-                                            this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
                                     il.Register(
@@ -1998,7 +2013,25 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         break;
                     case E_RLWINM:
                         {
-                            if (instr->fields[2].value > 0x10 && instr->fields[3].value == instr->fields[2].value - 0x10) {
+                            if (instr->fields[2].value == 0) {
+                                il.AddInstruction(
+                                    il.SetRegister(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value),
+                                        il.And(
+                                            4,
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[1].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
+                                            )
+                                        )
+                                    )
+                                );
+                            } else if (instr->fields[2].value > 0x10 && instr->fields[3].value == instr->fields[2].value - 0x10) {
                                 il.AddInstruction(
                                     il.SetRegister(
                                         4,
@@ -2024,6 +2057,31 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     )
                                 );
                             
+                            } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[2].value > 0 && instr->fields[2].value <= 4 && instr->fields[3].value == 0) {
+                                il.AddInstruction(
+                                    il.SetRegister(
+                                        4,
+                                        this->get_r_reg(instr->fields[0].value),
+
+                                        il.Mult(
+                                            4,
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[1].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                pow(2,instr->fields[2].value)
+                                            )
+                                        ),
+                                        il.Const(
+                                            4,
+                                            ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
+                                        )
+                                        
+                                    )
+                                );
+
                             } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[2].value > 0 && instr->fields[2].value <= 4) {
                                 il.AddInstruction(
                                     il.SetRegister(
@@ -2097,24 +2155,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     )
                                 );
                             
-                            } else if (instr->fields[2].value == 0) {
-                                il.AddInstruction(
-                                    il.SetRegister(
-                                        4,
-                                        this->get_r_reg(instr->fields[0].value),
-                                        il.And(
-                                            4,
-                                            il.Register(
-                                                4,
-                                                this->get_r_reg(instr->fields[1].value)
-                                            ),
-                                            il.Const(
-                                                4,
-                                                ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
-                                            )
-                                        )
-                                    )
-                                );
                             } else {
                                 il.AddInstruction(
                                     il.SetRegister(
