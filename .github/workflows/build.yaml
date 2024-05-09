@@ -62,4 +62,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: ${{matrix.config.name}}-${{matrix.version}}
-        path: ${{github.workspace}}/build/*TestPlugin*
+        path: ${{github.workspace}}/build/*VLE_Extension*
