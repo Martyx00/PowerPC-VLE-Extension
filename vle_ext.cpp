@@ -4001,9 +4001,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         break;
                     }
                 }
-                /*
-                LogInfo("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
-                LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
+                
+                //LogError("%s AT 0x%x: N: %d", instr_name, (uint32_t)addr,instr->n);
+                /*LogInfo("%s OP[0] type: %d: value: %d", instr_name, instr->fields[0].type,instr->fields[0].value);
                 LogInfo("%s OP[1] type: %d: value: %d", instr_name, instr->fields[1].type,instr->fields[1].value);
                 LogInfo("%s OP[2] type: %d: value: %d", instr_name, instr->fields[2].type,instr->fields[2].value);
                 */
