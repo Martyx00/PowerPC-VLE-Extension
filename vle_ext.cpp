@@ -1710,9 +1710,16 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     this->get_r_reg(instr->fields[0].value),
                                     il.ZeroExtend(
                                         4,
-                                        il.Register(
+                                        il.And(
                                             1,
-                                            this->get_r_reg(instr->fields[0].value)
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[0].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                0xff
+                                            )
                                         )
                                     )
                                 )
@@ -1727,9 +1734,16 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     this->get_r_reg(instr->fields[0].value),
                                     il.ZeroExtend(
                                         4,
-                                        il.Register(
+                                        il.And(
                                             2,
-                                            this->get_r_reg(instr->fields[0].value)
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[0].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                0xffff
+                                            )
                                         )
                                     )
                                 )
@@ -1744,9 +1758,16 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     this->get_r_reg(instr->fields[0].value),
                                     il.SignExtend(
                                         4,
-                                        il.Register(
+                                        il.And(
                                             1,
-                                            this->get_r_reg(instr->fields[0].value)
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[0].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                0xff
+                                            )
                                         )
                                     )
                                 )
@@ -1761,9 +1782,16 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     this->get_r_reg(instr->fields[0].value),
                                     il.SignExtend(
                                         4,
-                                        il.Register(
+                                        il.And(
                                             2,
-                                            this->get_r_reg(instr->fields[0].value)
+                                            il.Register(
+                                                4,
+                                                this->get_r_reg(instr->fields[0].value)
+                                            ),
+                                            il.Const(
+                                                4,
+                                                0xffff
+                                            )
                                         ),
                                         CR0_UNSIGNED_FLAG
                                     )
