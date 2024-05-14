@@ -694,7 +694,24 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             );
                         }
                         break;
-                    case E_LI:
+                    case E_LI: //TODO signing
+                        {
+                            il.AddInstruction(
+                                il.SetRegister(
+                                    4,
+                                    this->get_r_reg(instr->fields[0].value),
+                                    il.SignExtend(
+                                        4,
+                                        il.Const(
+                                            3,
+                                            instr->fields[1].value
+                                        )
+                                    )
+                                    
+                                )
+                            );
+                        }
+                        break;
                     case SE_LI:
                         {
                             il.AddInstruction(
@@ -710,7 +727,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         }
                         break;
                     case SE_MR:
-                    case SE_MFAR:
+                    case SE_MFAR:    
                     case SE_MTAR:
                         {
                             il.AddInstruction(
@@ -746,7 +763,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             );
                         }
                         break;
-                    case E_ADD2I:
+                    case E_ADD2I: // 010c68f2 TODO flags?
                         {
                             il.AddInstruction(
                                 il.SetRegister(
@@ -765,7 +782,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                                 instr->fields[1].value
                                             )
                                         ),
-                                        should_update_flags ? CR0_UNSIGNED_FLAG : 0
+                                        should_update_flags ? (CR0_UNSIGNED_FLAG) : 0
                                     )
                                 )
                             );
@@ -858,7 +875,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                             4,
                                             this->get_r_reg(instr->fields[1].value)
                                         ),
-                                        il.ZeroExtend(
+                                        il.SignExtend(
                                             4,
                                             il.Const(
                                                 1,
@@ -4143,7 +4160,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             result.emplace_back(RegisterToken, reg_str);
                             break;
                         case TYPE_IMM:
-                            sprintf(hex_val, "0x%x", instr->fields[op_index].value); 
+                            sprintf(hex_val, "%c0x%x", ((int32_t)instr->fields[op_index].value<0) ? '-' : ' ',((int32_t)instr->fields[op_index].value<0) ?-(int32_t)instr->fields[op_index].value : (int32_t)instr->fields[op_index].value); 
                             result.emplace_back(IntegerToken, hex_val, instr->fields[op_index].value);
                             break;
                         case TYPE_MEM:
