@@ -16,6 +16,7 @@ using namespace std;
 #define PPC_REG_MSR 152 
 
 #define CR0_UNSIGNED_FLAG 2
+#define CR0_SIGNED_FLAG 1
 #define IL_FLAG_XER_CA 34
 
 uint32_t cr_unsigned_array[] = {
@@ -27,6 +28,17 @@ uint32_t cr_unsigned_array[] = {
     12, // CR5
     14, // CR6
     16 // CR7
+};
+
+uint32_t cr_signed_array[] = {
+    1, // CR0
+    3, // CR1
+    5, // CR2
+    7, // CR3
+    9, // CR4
+    11, // CR5
+    13, // CR6
+    15 // CR7
 };
 
 enum VLEIntrinsics{
@@ -1402,7 +1414,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                                 il.SignExtend(
                                                     4,
                                                     il.Const(
-                                                        2,
+                                                        1,
                                                         instr->fields[2].value
                                                     )
                                                 )
@@ -1426,7 +1438,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         il.SignExtend(
                                             4,
                                             il.Const(
-                                                2,
+                                                1,
                                                 instr->fields[2].value
                                             )
                                         )
@@ -1455,7 +1467,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                                 il.SignExtend(
                                                     4,
                                                     il.Const(
-                                                        2,
+                                                        1,
                                                         instr->fields[2].value
                                                     )
                                                 )
@@ -1479,7 +1491,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         il.SignExtend(
                                             4,
                                             il.Const(
-                                                2,
+                                                1,
                                                 instr->fields[2].value
                                             )
                                         )
@@ -1506,7 +1518,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                             il.SignExtend(
                                                 4,
                                                 il.Const(
-                                                    2,
+                                                    1,
                                                     instr->fields[2].value
                                                 )
                                             )
@@ -1528,7 +1540,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         il.SignExtend(
                                             4,
                                             il.Const(
-                                                2,
+                                                1,
                                                 instr->fields[2].value
                                             )
                                         )
@@ -1542,20 +1554,50 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             il.AddInstruction(
                                 il.Sub(
                                     4,
-                                    il.Register(
-                                        4,
-                                        this->get_r_reg(instr->fields[0].value)
-                                    ),
-                                    il.Register(
-                                        4,
-                                        this->get_r_reg(instr->fields[1].value)
-                                    ),
-                                    CR0_UNSIGNED_FLAG
+                                    //il.SignExtend(
+                                    //    4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[0].value)
+                                        ),
+                                    //)
+                                    //,il.SignExtend(
+                                     //   4,
+                                        il.Register(
+                                            4,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        )
+                                    //)
+                                    ,
+                                    CR0_SIGNED_FLAG
                                 )
                             );
                         }
                         break;
                      case E_CMPH:
+                        {
+                            il.AddInstruction(
+                                il.Sub(
+                                    4,
+                                    il.SignExtend(
+                                        4,
+                                        il.Register(
+                                            2,
+                                            this->get_r_reg(instr->fields[1].value)
+                                        )
+                                    ),
+                                    il.SignExtend(
+                                        4,
+                                        il.Register(
+                                            2,
+                                            this->get_r_reg(instr->fields[2].value)
+                                        )
+                                    ),
+                                    cr_signed_array[instr->fields[0].value]
+                                )
+                            );
+                        }
+                        break;
                      case SE_CMPH:
                         {
                             il.AddInstruction(
@@ -1575,7 +1617,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                             this->get_r_reg(instr->fields[1].value)
                                         )
                                     ),
-                                    CR0_UNSIGNED_FLAG
+                                    CR0_SIGNED_FLAG
                                 )
                             );
                         }
@@ -1644,7 +1686,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                             instr->fields[1].value
                                         )
                                     ),
-                                    CR0_UNSIGNED_FLAG
+                                    CR0_SIGNED_FLAG
                                 )
                             );
                         }
@@ -2007,10 +2049,14 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                             4,
                                             this->get_r_reg(instr->fields[0].value)
                                         ),
-                                        il.Const(
+                                        il.ZeroExtend(
                                             4,
-                                            instr->fields[1].value
+                                            il.Const(
+                                                2,
+                                                instr->fields[1].value
+                                            )
                                         )
+                                        
                                     )
                                 )
                             );
@@ -4125,6 +4171,61 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 } else if (strcmp(instr_name,"lbzx") == 0) {
                     LogInfo("FOUND LBZX AT 0x%x",(uint32_t)addr);
                     return true;
+                } else if (strcmp(instr_name,"isel") == 0) {
+                    LowLevelILLabel true_tag;
+                    LowLevelILLabel false_tag;
+                    LowLevelILLabel end_tag;
+                    ExprId operand;
+                    if (instr->fields[1].value == 0) {
+                        operand = il.Const(4, instr->fields[1].value);
+                    } else {
+                        operand = il.Register(4,this->get_r_reg(instr->fields[1].value));
+                    }
+                    int flag_group;
+                    switch (instr->fields[3].value)
+                    {
+                        case 2:
+                            flag_group = 4;
+                            break;
+                        case 1:
+                            flag_group = 2;
+                            break;
+                        case 0:
+                            flag_group = 0;
+                            break;
+                        default:
+                            flag_group = instr->fields[3].value;
+                    }
+                    il.AddInstruction(
+                        il.If(
+                            il.FlagGroup(flag_group),
+                            true_tag,
+                            false_tag
+                        )
+                    );
+                    
+                    il.MarkLabel(true_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            operand
+                        )
+                    );
+                    il.AddInstruction(il.Goto(end_tag));
+                    il.MarkLabel(false_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            )
+                        )
+                    );
+                    il.MarkLabel(end_tag);
+                    return true;
                 }
                 
             }
@@ -4138,7 +4239,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
+            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0 || strncmp(instr->name, "isel",4) == 0) {
             //if (true) {
                 len = instr->size;
                 // Add instruction name stbx
@@ -4160,7 +4261,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             result.emplace_back(RegisterToken, reg_str);
                             break;
                         case TYPE_IMM:
-                            sprintf(hex_val, "%c0x%x", ((int32_t)instr->fields[op_index].value<0) ? '-' : ' ',((int32_t)instr->fields[op_index].value<0) ?-(int32_t)instr->fields[op_index].value : (int32_t)instr->fields[op_index].value); 
+                            sprintf(hex_val, "%s0x%x", ((int32_t)instr->fields[op_index].value<0) ? "-" : "",((int32_t)instr->fields[op_index].value<0) ?-(int32_t)instr->fields[op_index].value : (int32_t)instr->fields[op_index].value); 
                             result.emplace_back(IntegerToken, hex_val, instr->fields[op_index].value);
                             break;
                         case TYPE_MEM:
@@ -4220,7 +4321,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
-            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
+            if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0 || strncmp(instr->name, "isel",4) == 0) {
             //if (true) {
                 result.length = instr->size;
                 uint32_t target;
