@@ -47,8 +47,6 @@ enum VLEIntrinsics{
     E_LDMVGPRW_INTRINSIC
 };
 
-// TODO add floating point instructions 0x11986ca
-// TODO add evfsmulx and others (look at IDA) 0115DDD0
 // TODO MTSPR decoding
 // TODO e_bc and e_bcl e_bdz and e_bdzl signed jump value - check correctness.
 
@@ -384,7 +382,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     }
                     il.AddInstruction(il.Jump(il.Register(4, CTR_REG)));
                     il.MarkLabel(false_tag);
-                    //il.SetIndirectBranches({ ArchAndAddr(this, addr + instr->size) }); // TODO this does not work
+                    
                 } else if (instr->op_type == OP_TYPE_CCALL) {
                     uint32_t value;
                     if (instr->fields[0].type == TYPE_JMP) {
@@ -2180,7 +2178,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     )
                                 );
                             
-                            } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[2].value > 0 && instr->fields[2].value <= 4 && instr->fields[3].value == 0) {
+                            /*} else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[2].value > 0 && instr->fields[2].value <= 4 && instr->fields[3].value == 0) {
                                 il.AddInstruction(
                                     il.SetRegister(
                                         4,
@@ -2203,34 +2201,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                         
                                     )
-                                );
-
-                            } else if (instr->fields[2].value + instr->fields[4].value == 0x1f && instr->fields[2].value > 0 && instr->fields[2].value <= 4) {
-                                il.AddInstruction(
-                                    il.SetRegister(
-                                        4,
-                                        this->get_r_reg(instr->fields[0].value),
-                                        il.And(
-                                            4,
-                                            il.Mult(
-                                                4,
-                                                il.Register(
-                                                    4,
-                                                    this->get_r_reg(instr->fields[1].value)
-                                                ),
-                                                il.Const(
-                                                    4,
-                                                    pow(2,instr->fields[2].value)
-                                                )
-                                            ),
-                                            il.Const(
-                                                4,
-                                                ((1 << (instr->fields[4].value - instr->fields[3].value + 1)) - 1) << (31 - instr->fields[4].value)
-                                            )
-                                        )
-                                        
-                                    )
-                                );
+                                );*/
 
                             } else if (instr->fields[3].value == 0 && 0x1f - instr->fields[4].value == instr->fields[2].value) {
                                 il.AddInstruction(
@@ -3176,8 +3147,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         break;
                     case E_CRAND:
                         {
-                            //il.AddInstruction(il.Unimplemented());
-                            // TODO find how to map this to correct registers
                             il.AddInstruction(
                                 il.SetFlag(
                                     instr->fields[0].value,
@@ -3196,9 +3165,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         break;
                     case E_CRANDC:
                         {
-                            //il.AddInstruction(il.Unimplemented());
-                            //TODO find how to map this to correct registers
-                            //return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
                             il.AddInstruction(
                                 il.SetFlag(
                                     instr->fields[0].value,
@@ -4318,7 +4284,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                 result.length = instr->size;
                 uint32_t target;
                 switch (instr->op_type) {
-                    // TODO OP_TYPE_CCALL??
                     case OP_TYPE_JMP:
                         result.AddBranch(UnconditionalBranch,(instr->fields[0].value));// + (uint32_t) addr) & 0xffffffff);
                         break;

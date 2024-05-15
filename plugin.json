@@ -1,0 +1,27 @@
+{
+	"pluginmetadataversion" : 2,
+	"name": "PowerPC VLE Extension",
+	"type": ["architecture"],
+	"api": ["python3"],
+	"description": "PowerPC VLE support via architecture extension.",
+	"longdescription": "Architecture extension for default PPC architecture to support VLE instructions. This includes dissassembly for vector and floating point instructions (some float operations are also lifted).",
+	"license": {
+		"name": "Apache-2.0",
+      	"text": "Copyright 2024 Martin Petran\n\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\n\n\thttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
+  	},
+	"platforms" : ["Darwin", "Linux", "Windows"],
+	"installinstructions" : {
+		"Darwin" : "N/A",
+		"Linux" : "N/A",
+		"Windows" : "N/A"
+	},
+	"dependencies": {
+		"pip": [],
+		"apt": [],
+		"installers": [],
+		"other": []
+	},
+	"version": "0.1",
+	"author": "Martin Petran",
+	"minimumbinaryninjaversion": 3
+}
