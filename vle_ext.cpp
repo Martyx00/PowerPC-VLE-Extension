@@ -377,9 +377,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         il.AddInstruction(il.SetRegister(4,this->GetLinkRegister(),il.ConstPointer(4,instr->fields[0].value)));
                     }
                 } else if (instr->op_type == OP_TYPE_RJMP) {
-                    if (addr == 0x11b409e) {
-                        LogInfo("GOT INSTR %s at 0x%x", instr->name, (uint32_t) addr);
-                    }
                     il.AddInstruction(il.Jump(il.Register(4, CTR_REG)));
                     il.MarkLabel(false_tag);
                     
@@ -4125,9 +4122,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             PPC_REG_MSR
                         )
                     );
-                    return true;
-                } else if (strcmp(instr_name,"lbzx") == 0) {
-                    LogInfo("FOUND LBZX AT 0x%x",(uint32_t)addr);
                     return true;
                 } else if (strcmp(instr_name,"isel") == 0) {
                     LowLevelILLabel true_tag;
