@@ -336,12 +336,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
             strncpy(instr_name,instr->name,49);
-            //LogInfo("FOR %s GOT %d || %d", instr_name,strncmp(instr_name, "se_",3) == 0, strncmp(instr_name, "e_", 2) == 0);
             len = instr->size;
+
             //LogError("Processing %s at 0x%x,",instr_name, addr);
             if (strncmp(instr_name, "se_",3) == 0 || strncmp(instr_name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0) {
             //if (true) {
-                //LogInfo("ENTERED");
                 //len = instr->size;
                 if (instr_name[strlen(instr_name)-1] == '.') {
                     should_update_flags = true;
@@ -4123,6 +4122,129 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         )
                     );
                     return true;
+                } else if (strcmp(instr_name,"iseleq") == 0) {
+                    LowLevelILLabel true_tag;
+                    LowLevelILLabel false_tag;
+                    LowLevelILLabel end_tag;
+                    ExprId operand;
+                    if (instr->fields[1].value == 0) {
+                        operand = il.Const(4, instr->fields[1].value);
+                    } else {
+                        operand = il.Register(4,this->get_r_reg(instr->fields[1].value));
+                    }
+                    il.AddInstruction(
+                        il.If(
+                            il.FlagGroup(4),
+                            true_tag,
+                            false_tag
+                        )
+                    );
+                    
+                    il.MarkLabel(true_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            operand
+                        )
+                    );
+                    il.AddInstruction(il.Goto(end_tag));
+                    il.MarkLabel(false_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            )
+                        )
+                    );
+                    il.MarkLabel(end_tag);
+                    return true;
+                    
+                } else if (strcmp(instr_name,"iselgt") == 0) {
+                    LowLevelILLabel true_tag;
+                    LowLevelILLabel false_tag;
+                    LowLevelILLabel end_tag;
+                    ExprId operand;
+                    if (instr->fields[1].value == 0) {
+                        operand = il.Const(4, instr->fields[1].value);
+                    } else {
+                        operand = il.Register(4,this->get_r_reg(instr->fields[1].value));
+                    }
+                    il.AddInstruction(
+                        il.If(
+                            il.FlagGroup(2),
+                            true_tag,
+                            false_tag
+                        )
+                    );
+                    
+                    il.MarkLabel(true_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            operand
+                        )
+                    );
+                    il.AddInstruction(il.Goto(end_tag));
+                    il.MarkLabel(false_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            )
+                        )
+                    );
+                    il.MarkLabel(end_tag);
+                    return true;
+                    
+                } else if (strcmp(instr_name,"isellt") == 0) {
+                    LowLevelILLabel true_tag;
+                    LowLevelILLabel false_tag;
+                    LowLevelILLabel end_tag;
+                    ExprId operand;
+                    if (instr->fields[1].value == 0) {
+                        operand = il.Const(4, instr->fields[1].value);
+                    } else {
+                        operand = il.Register(4,this->get_r_reg(instr->fields[1].value));
+                    }
+                    il.AddInstruction(
+                        il.If(
+                            il.FlagGroup(0),
+                            true_tag,
+                            false_tag
+                        )
+                    );
+                    
+                    il.MarkLabel(true_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            operand
+                        )
+                    );
+                    il.AddInstruction(il.Goto(end_tag));
+                    il.MarkLabel(false_tag);
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.Register(
+                                4,
+                                this->get_r_reg(instr->fields[2].value)
+                            )
+                        )
+                    );
+                    il.MarkLabel(end_tag);
+                    return true;
+                    
                 } else if (strcmp(instr_name,"isel") == 0) {
                     LowLevelILLabel true_tag;
                     LowLevelILLabel false_tag;
@@ -4183,7 +4305,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             }
             
         }
+        //return false;
 		return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
+
 	}
 
     virtual bool GetInstructionText(const uint8_t *data, uint64_t addr, size_t &len, std::vector< InstructionTextToken > &result) override
@@ -4240,9 +4364,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     result.emplace_back(OperandSeparatorToken, ", ");
                 }
                 result.pop_back();
-                /*vle_snprint(tmp, 256,(uint32_t) addr, instr);
-                LogInfo("GOT %s",tmp);
-                LogInfo("GOT %d", instr->op_type);*/
                 return true;
             } 
 			
@@ -4256,15 +4377,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             }
             tmp[14 - len] = 0;
             std::string str_space(tmp);
-            //LogInfo("GOT: |%s|",tmp);
-            //LogInfo("GOT: |%s|",result.at(1).text.c_str());
             result.at(1).text = str_space;
-            //result.at(0).text = str_name;
             return true;
         }
-        
-        //sprintf(tmp,"%-14s",)
-        //result.at(0) 
 		return false;
 	}
 
@@ -4328,13 +4443,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     default:
                         break;
                 }
-                /*vle_snprint(tmp, 256,(uint32_t) addr, instr);
-                LogInfo("GOT %s",tmp);
-                LogInfo("GOT %d", instr->op_type);*/
                 return true;
             }
-			
         }
+        //return false;
+        
 		return ArchitectureHook::GetInstructionInfo(data, addr, maxLen, result);
 	}
 };
