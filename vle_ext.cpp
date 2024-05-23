@@ -13,7 +13,9 @@ using namespace BinaryNinja;
 using namespace std;
 
 #define CTR_REG 3
-#define PPC_REG_MSR 152
+// #define PPC_REG_MSR 152
+#define PPC_REG_MSR 344  // ppc_reg::PPC_REG_ENDING
+
 
 #define CR0_UNSIGNED_FLAG 2
 #define CR0_SIGNED_FLAG 1
@@ -216,6 +218,12 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 		return result;
 	}
 
+	virtual string GetRegisterName(uint32_t regId) override
+	{
+        if (regId == PPC_REG_MSR)
+            return "MSR";
+        return ArchitectureHook::GetRegisterName(regId);
+    }
 
 	virtual std::vector<uint32_t> GetGlobalRegisters() override
 	{
@@ -257,11 +265,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
     virtual std::string GetIntrinsicName (uint32_t intrinsic) override {
          switch (intrinsic)  {
             case CNTLWZ_INTRINSIC:
-                return "CountLeadingZeros";
+                return "_CountLeadingZeros";
             case E_STMVGPRW_INTRINSIC:
-                return "Store (R0, R3:R12)";
+                return "_Store (R0, R3:R12)";
             case E_LDMVGPRW_INTRINSIC:
-                return "Load (R0, R3:R12)";
+                return "_Load (R0, R3:R12)";
             default:
                 return "";
             }
@@ -270,7 +278,8 @@ class ppcVleArchitectureExtension : public ArchitectureHook
     virtual std::vector<uint32_t> GetAllIntrinsics() override {
         return vector<uint32_t> {
             CNTLWZ_INTRINSIC,
-            E_STMVGPRW_INTRINSIC
+            E_STMVGPRW_INTRINSIC,
+            E_LDMVGPRW_INTRINSIC
         };
     }
 
@@ -4142,11 +4151,11 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                     il.AddInstruction(
                         il.SetRegister(
                             4,
+                            this->get_r_reg(instr->fields[0].value),
                             il.Register(
                                 4,
-                                this->get_r_reg(instr->fields[0].value)
-                            ),
-                            PPC_REG_MSR
+                                PPC_REG_MSR
+                            )
                         )
                     );
                     return true;
