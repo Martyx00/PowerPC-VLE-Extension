@@ -962,7 +962,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     ),
                                     il.Register(
-                                        4,
+                                        2,
                                         this->get_r_reg(instr->fields[0].value)
                                     )
                                 )
@@ -1009,7 +1009,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     ),
                                     il.Register(
-                                        4,
+                                        1,
                                         this->get_r_reg(instr->fields[0].value)
                                     )
                                 )
@@ -1113,7 +1113,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     ),
                                     il.Register(
-                                        4,
+                                        2,
                                         this->get_r_reg(instr->fields[0].value)
                                     )
                                 )
@@ -1141,7 +1141,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     ),
                                     il.Register(
-                                        4,
+                                        2,
                                         this->get_r_reg(instr->fields[0].value)
                                     )
                                 )
@@ -1169,7 +1169,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     ),
                                     il.Register(
-                                        4,
+                                        1,
                                         this->get_r_reg(instr->fields[0].value)
                                     )
                                 )
@@ -1183,7 +1183,6 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                     1,
                                     il.Add(
                                         4,
-                                        
                                         il.Register(
                                             4,
                                             this->get_r_reg(instr->fields[1].value)
@@ -1197,7 +1196,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         )
                                     ),
                                     il.Register(
-                                        4,
+                                        1,
                                         this->get_r_reg(instr->fields[0].value)
                                     )
                                 )
@@ -2860,7 +2859,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                                         this->get_r_reg(instr->fields[0].value),
                                         il.Const(
                                             4,
-                                            (1 << (instr->fields[1].value + 1)) - 1
+                                            (1 << (instr->fields[1].value)) - 1
                                         )
                                     )
                                 );          
@@ -4095,6 +4094,32 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                             { RegisterOrFlag::Register(this->get_r_reg(instr->fields[0].value)) }, // Outputs
                             CNTLWZ_INTRINSIC,
                             { il.Register(4, this->get_r_reg(instr->fields[1].value)) } // Inputs
+                        )
+                    );
+                    return true;
+                } else if (strcmp(instr_name,"subfe") == 0) {
+                    il.AddInstruction(
+                        il.SetRegister(
+                            4,
+                            this->get_r_reg(instr->fields[0].value),
+                            il.SubBorrow(
+                                4,
+                                //il.Add(
+                                 //   4,
+                                    il.Register(
+                                        4,
+                                        this->get_r_reg(instr->fields[2].value)
+                                    ),
+                               // ),
+                                il.Register(
+                                    4,
+                                    this->get_r_reg(instr->fields[1].value)
+                                ),
+                                il.Flag(
+                                    IL_FLAG_XER_CA
+                                ),
+                                IL_FLAG_XER_CA
+                            )
                         )
                     );
                     return true;
