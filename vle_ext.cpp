@@ -4503,6 +4503,25 @@ class ppcVleArchitectureExtension : public ArchitectureExtension
 	}
 };
 
+class BareMetalPpc32Platform: public Platform
+{
+public:
+	BareMetalPpc32Platform(Architecture* arch, const std::string& name): Platform(arch, name)
+	{
+		Ref<CallingConvention> cc;
+
+		cc = arch->GetCallingConventionByName("svr4");
+		if (cc)
+		{
+			RegisterDefaultCallingConvention(cc);
+		}
+
+		cc = arch->GetCallingConventionByName("linux-syscall");
+		if (cc)
+			SetSystemCallConvention(cc);
+	}
+};
+
 
 extern "C"
 {
@@ -4522,6 +4541,11 @@ extern "C"
 		conv = Architecture::GetByName("ppc")->GetCallingConventionByName("svr4");
 		ppc_vle_ext->RegisterCallingConvention(conv);
 		ppc_vle_ext->SetDefaultCallingConvention(conv);
+
+        Ref<Platform> platform;
+        platform = new BareMetalPpc32Platform(ppc_vle_ext, "bare-ppc32");
+        Platform::Register("bare", platform);
+        
 		return true;
 	}
 }
