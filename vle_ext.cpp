@@ -52,10 +52,11 @@ enum VLEIntrinsics{
 // TODO MTSPR decoding
 // TODO e_bc and e_bcl e_bdz and e_bdzl signed jump value - check correctness.
 
-class ppcVleArchitectureExtension : public ArchitectureHook
+class ppcVleArchitectureExtension : public ArchitectureExtension
 {
   public:
-	ppcVleArchitectureExtension(Architecture* ppc) : ArchitectureHook(ppc) {}
+	ppcVleArchitectureExtension(const std::string &name,Architecture* ppc) : ArchitectureExtension(name,ppc) {
+    }
 
     virtual size_t GetInstructionAlignment() const override {
         return 2;
@@ -213,7 +214,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
     // Registers override
 	virtual vector<uint32_t> GetAllRegisters() override
 	{
-		vector<uint32_t> result = ArchitectureHook::GetAllRegisters();
+		vector<uint32_t> result = this->GetBaseArchitecture()->GetAllRegisters();
         result.push_back(PPC_REG_MSR);
 		return result;
 	}
@@ -222,13 +223,13 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 	{
         if (regId == PPC_REG_MSR)
             return "MSR";
-        return ArchitectureHook::GetRegisterName(regId);
+        return this->GetBaseArchitecture()->GetRegisterName(regId);
     }
 
 	virtual std::vector<uint32_t> GetGlobalRegisters() override
 	{
 		//return vector<uint32_t>{ PPC_REG_R2, PPC_REG_R13, PPC_REG_MSR };
-        vector<uint32_t> result = ArchitectureHook::GetGlobalRegisters();
+        vector<uint32_t> result = this->GetBaseArchitecture()->GetGlobalRegisters();
         result.push_back(PPC_REG_MSR);
         return result;
 	}
@@ -256,7 +257,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 			default:
 				//LogError("%s(%d == \"%s\") invalid argument", __func__,
 				//  regId, powerpc_reg_to_str(regId));
-				return ArchitectureHook::GetRegisterInfo(regId);
+				return this->GetBaseArchitecture()->GetRegisterInfo(regId);
 		}
 	}
 
@@ -342,6 +343,9 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         LowLevelILLabel false_tag;
         ExprId condition;
         char instr_name[50];
+        /*if (this->is_vle == 0) {
+            return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
+        } */
 
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
             strncpy(instr_name,instr->name,49);
@@ -373,7 +377,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
                         }
                     }
                     else {
-                        LogError("il.GetFunction() returned null for address 0x%08" PRIx64, addr);
+                        LogWarn("il.GetFunction() returned null for address 0x%08" PRIx64, addr);
                     }
 
                     if (label) {
@@ -4343,12 +4347,15 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 
         }
         //return false;
-		return ArchitectureHook::GetInstructionLowLevelIL(data, addr, len, il);
+		return this->GetBaseArchitecture()->GetInstructionLowLevelIL(data, addr, len, il);
 
 	}
 
     virtual bool GetInstructionText(const uint8_t *data, uint64_t addr, size_t &len, std::vector< InstructionTextToken > &result) override
 	{
+        /*if (this->is_vle == 0) {
+            return ArchitectureHook::GetInstructionText(data, addr, len, result);
+        } */
         char tmp[256] = {0};
 		vle_t* instr;
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
@@ -4405,7 +4412,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
             }
 
         }
-        ArchitectureHook::GetInstructionText(data, addr, len, result);
+        this->GetBaseArchitecture()->GetInstructionText(data, addr, len, result);
         if (result.size() > 0) {
             snprintf(tmp, sizeof(tmp), "%-13s",result.at(0).text.c_str());
             int len = strlen(result.at(0).text.c_str());
@@ -4424,6 +4431,13 @@ class ppcVleArchitectureExtension : public ArchitectureHook
 	{
         char tmp[256] = {0};
 		vle_t* instr;
+        /*if (this->is_vle == 2) {
+            this->is_vle = ShowMessageBox("IS VLE?","IS IT OK TO PROCESS THIS AS VLE?",YesNoButtonSet );
+            LogInfo("BUTTON RESULT %d",this->is_vle);
+        }
+        if (this->is_vle == 0) {
+            return ArchitectureHook::GetInstructionInfo(data, addr, maxLen, result);
+        } */
         if ((instr = vle_decode_one(data, 4,(uint32_t) addr))) {
             if (strncmp(instr->name, "se_",3) == 0 || strncmp(instr->name, "e_", 2) == 0 || strncmp(instr->name, "ef",2) == 0 || strncmp(instr->name, "ev",2) == 0 || strncmp(instr->name, "isel",4) == 0) {
             //if (true) {
@@ -4485,7 +4499,7 @@ class ppcVleArchitectureExtension : public ArchitectureHook
         }
         //return false;
 
-		return ArchitectureHook::GetInstructionInfo(data, addr, maxLen, result);
+		return this->GetBaseArchitecture()->GetInstructionInfo(data, addr, maxLen, result);
 	}
 };
 
@@ -4502,8 +4516,12 @@ extern "C"
 
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
-		Architecture* ppc_vle_ext = new ppcVleArchitectureExtension(Architecture::GetByName("ppc"));
+		Architecture* ppc_vle_ext = new ppcVleArchitectureExtension("ppc_vle",Architecture::GetByName("ppc"));
 		Architecture::Register(ppc_vle_ext);
+        Ref<CallingConvention> conv;
+		conv = Architecture::GetByName("ppc")->GetCallingConventionByName("svr4");
+		ppc_vle_ext->RegisterCallingConvention(conv);
+		ppc_vle_ext->SetDefaultCallingConvention(conv);
 		return true;
 	}
 }
