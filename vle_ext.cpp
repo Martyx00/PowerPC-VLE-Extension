@@ -4543,8 +4543,8 @@ extern "C"
 		ppc_vle_ext->SetDefaultCallingConvention(conv);
 
         Ref<Platform> platform;
-        platform = new BareMetalPpc32Platform(ppc_vle_ext, "bare-ppc32");
-        Platform::Register("bare", platform);
+        platform = new BareMetalPpc32Platform(ppc_vle_ext, "baremetal-ppc_vle");
+        Platform::Register("baremetal", platform);
         
 		return true;
 	}
